@@ -4,6 +4,8 @@ This project conducts a comprehensive quantitative analysis of the 11 GICS secto
 
 The primary goal is to move beyond simple performance metrics and understand the underlying drivers of sector risk and return, culminating in a practical, rule-based investment strategy.
 
+![Factor Analysis Charts / Returns]([Insert Image/Result Here])
+
 ## Methodology: Using Sector ETFs as Proxies
 
 To analyze sector-level performance, this project uses the 11 Sector SPDR ETFs. These are industry-standard, highly liquid, and investable instruments that serve as proxies for the performance of the Global Industry Classification Standard (GICS) sectors of the S&P 500. This approach allows for the analysis of broad sector trends without the complexity of building and maintaining a custom index from hundreds of individual stocks.
