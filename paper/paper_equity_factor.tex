@@ -1,0 +1,110 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{setspace}
+\usepackage{float}
+\usepackage{enumitem}
+\onehalfspacing
+
+\hypersetup{colorlinks=true,linkcolor=blue!70!black,citecolor=blue!70!black,urlcolor=blue!70!black}
+
+\title{\textbf{Quantitative Equity Sector Analysis:\\Factor Model Decomposition, GARCH Volatility,\\and Momentum-Based Sector Rotation}}
+\author{Tanishk Yadav\\[2pt]\textit{MS Financial Engineering}\\NYU Tandon School of Engineering\\New York, NY, USA\\[2pt]ORCID: 0009-0006-2382-9411}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+This paper presents a comprehensive quantitative analysis of the 11 GICS sectors of the U.S. stock market using established academic factor models. We decompose sector returns using the Fama-French 3-Factor, Carhart 4-Factor, and Fama-French 5-Factor models to identify systematic risk exposures and residual alpha. The analysis reveals that factor models explain 92--93\% of daily return variance for the technology sector, with a market beta exceeding 1.0, negative SMB loading (large-cap bias), and negative HML loading (growth characteristic). Adding Momentum and Profitability factors significantly improves explanatory power. We develop a momentum-based sector rotation strategy investing in the top 3 sectors by trailing 6-month returns with monthly rebalancing, benchmarked against SPY. Rolling regressions produce time-varying factor beta heatmaps demonstrating that sector risk profiles are non-stationary and shift across market regimes. A custom GARCH(1,1) implementation with maximum likelihood estimation captures time-varying volatility in factor model residuals.
+
+\medskip
+\noindent\textbf{Keywords:} Fama-French, factor models, sector rotation, GARCH, momentum, rolling regression
+\end{abstract}
+
+\section{Introduction}
+
+Understanding what drives sector returns is fundamental to portfolio construction, risk management, and performance attribution. While individual stock analysis is well-studied, sector-level factor decomposition reveals structural characteristics that inform allocation decisions: which sectors are growth-oriented, which carry size risk, and how these exposures evolve across market regimes.
+
+This project applies three progressively complex factor models to all 11 GICS sector ETFs, implements a practical trading strategy based on the findings, and examines the time-varying nature of factor exposures through rolling regressions.
+
+\section{Methodology}
+
+\subsection{Data}
+
+We analyze the 11 Sector SPDR ETFs (XLK, XLF, XLV, XLY, XLP, XLE, XLI, XLB, XLU, XLRE, XLC) from 2015 through 2025. Daily close prices are obtained via Yahoo Finance, and Fama-French factor data is sourced from the Kenneth French Data Library via \texttt{pandas-datareader}.
+
+\subsection{Factor Models}
+
+Three models are estimated via OLS regression for each sector:
+
+\textbf{Fama-French 3-Factor:}
+\begin{equation}
+    R_{i,t} - R_{f,t} = \alpha_i + \beta_1 (R_{m,t} - R_{f,t}) + \beta_2 \text{SMB}_t + \beta_3 \text{HML}_t + \varepsilon_{i,t}
+\end{equation}
+
+\textbf{Carhart 4-Factor:} Adds the UMD (Up Minus Down) momentum factor.
+
+\textbf{Fama-French 5-Factor:} Adds RMW (Robust Minus Weak profitability) and CMA (Conservative Minus Aggressive investment).
+
+Additionally, Ridge and Lasso regularized regressions are compared against OLS to assess factor selection robustness.
+
+\subsection{GARCH Volatility}
+
+A GARCH(1,1) model is estimated on OLS residuals via maximum likelihood:
+\begin{equation}
+    \sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2
+\end{equation}
+using L-BFGS-B optimization with positivity and stationarity constraints ($\alpha + \beta < 1$). An EWMA ($\lambda = 0.94$) volatility model serves as a comparison.
+
+\subsection{Sector Rotation Strategy}
+
+A monthly momentum-based rotation strategy:
+\begin{enumerate}[nosep]
+    \item Each month, rank the 11 sector ETFs by trailing 6-month cumulative return.
+    \item Go long the top 3 sectors with equal weight.
+    \item Rebalance monthly.
+    \item Benchmark against SPY buy-and-hold.
+\end{enumerate}
+
+\subsection{Cross-Sectional Analysis}
+
+Rolling 252-day regressions produce time-varying factor betas for each sector, visualized as heatmaps to reveal how risk profiles shift across market regimes (pre-COVID, COVID crash, recovery, 2022 rate hikes, 2024--2025 AI rally).
+
+\section{Key Findings}
+
+\begin{itemize}[nosep]
+    \item \textbf{High explanatory power}: FF models explain 92--93\% of Tech sector (XLK) daily return variance, leaving only 7--8\% unexplained.
+    \item \textbf{Sector DNA}: Technology exhibits $\beta_{\text{Mkt}} > 1$ (21\% more volatile than the market), negative SMB (large-cap bias), and negative HML (growth, not value).
+    \item \textbf{Model improvement}: Adding Momentum and Profitability factors from the 4-Factor and 5-Factor models yields statistically significant improvements in $R^2$ and residual diagnostics.
+    \item \textbf{Non-stationarity}: Rolling regressions confirm that sector factor exposures are not constant---a sector classified as ``defensive'' during a bull market can exhibit the highest beta during a regime transition.
+\end{itemize}
+
+\section{Limitations}
+
+\begin{itemize}[nosep]
+    \item The 6-month momentum lookback period is arbitrary and not optimized.
+    \item The sector rotation strategy does not account for transaction costs or factor crowding.
+    \item The GARCH(1,1) specification may not capture leverage effects (asymmetric volatility); GJR-GARCH or EGARCH could be more appropriate.
+    \item Factor exposures are treated as independent across sectors; a joint estimation (e.g., seemingly unrelated regressions) could improve efficiency.
+\end{itemize}
+
+\section{Conclusion}
+
+This analysis demonstrates that sector returns are predominantly explained by systematic factor exposures, with very limited residual alpha at the sector level. The key insight is that factor exposures are non-stationary: a model that assumes fixed betas will systematically misprice sector risk during regime transitions. This finding motivates regime-aware portfolio construction, which is explored in companion work.
+
+\medskip
+\noindent\textbf{Code Availability:} \url{https://github.com/tanishhky/Equity-Factor-Volatility-Analysis}
+
+\begin{thebibliography}{5}
+\bibitem{fama1993} E.~F. Fama and K.~R. French, ``Common risk factors in the returns on stocks and bonds,'' \textit{Journal of Financial Economics}, vol.~33, no.~1, pp.~3--56, 1993.
+\bibitem{carhart1997} M.~M. Carhart, ``On persistence in mutual fund performance,'' \textit{The Journal of Finance}, vol.~52, no.~1, pp.~57--82, 1997.
+\bibitem{fama2015} E.~F. Fama and K.~R. French, ``A five-factor asset pricing model,'' \textit{Journal of Financial Economics}, vol.~116, no.~1, pp.~1--22, 2015.
+\bibitem{bollerslev1986} T.~Bollerslev, ``Generalized autoregressive conditional heteroskedasticity,'' \textit{Journal of Econometrics}, vol.~31, no.~3, pp.~307--327, 1986.
+\end{thebibliography}
+
+\end{document}
