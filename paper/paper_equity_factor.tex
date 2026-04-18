@@ -8,6 +8,7 @@
 \usepackage{float}
 \usepackage{enumitem}
 \usepackage{graphicx}
+\usepackage{xcolor}
 \onehalfspacing
 
 \hypersetup{colorlinks=true,linkcolor=blue!70!black,citecolor=blue!70!black,urlcolor=blue!70!black}
@@ -21,7 +22,7 @@
 
 \begin{abstract}
 \noindent
-This paper presents a comprehensive quantitative analysis of the 11 GICS sectors of the U.S. stock market using established academic factor models. We decompose sector returns using the Fama-French 3-Factor, Carhart 4-Factor, and Fama-French 5-Factor models to identify systematic risk exposures and residual alpha. The analysis reveals that factor models explain 92--93\% of daily return variance for the technology sector, with a market beta exceeding 1.0, negative SMB loading (large-cap bias), and negative HML loading (growth characteristic). Adding Momentum and Profitability factors significantly improves explanatory power. We develop a momentum-based sector rotation strategy investing in the top 3 sectors by trailing 6-month returns with monthly rebalancing, benchmarked against SPY. Rolling regressions produce time-varying factor beta heatmaps demonstrating that sector risk profiles are non-stationary and shift across market regimes. A custom GARCH(1,1) implementation with maximum likelihood estimation captures time-varying volatility in factor model residuals.
+This paper presents a comprehensive quantitative analysis of the 11 GICS sectors of the U.S. stock market using established academic factor models. We decompose sector returns using the Fama-French 3-Factor, Carhart 4-Factor, and Fama-French 5-Factor models to identify systematic risk exposures and residual alpha. The analysis reveals that factor models explain 92 to 93\% of daily return variance for the technology sector, with a market beta exceeding 1.0, negative SMB loading (large-cap bias), and negative HML loading (growth characteristic). Adding Momentum and Profitability factors significantly improves explanatory power. We develop a momentum-based sector rotation strategy investing in the top 3 sectors by trailing 6-month returns with monthly rebalancing, benchmarked against SPY. Rolling regressions produce time-varying factor beta heatmaps demonstrating that sector risk profiles are non-stationary and shift across market regimes. A custom GARCH(1,1) implementation with maximum likelihood estimation captures time-varying volatility in factor model residuals.
 
 \medskip
 \noindent\textbf{Keywords:} Fama-French, factor models, sector rotation, GARCH, momentum, rolling regression
@@ -29,7 +30,7 @@ This paper presents a comprehensive quantitative analysis of the 11 GICS sectors
 
 \section{Introduction}
 
-Understanding what drives sector returns is fundamental to portfolio construction, risk management, and performance attribution. While individual stock analysis is well-studied, sector-level factor decomposition reveals structural characteristics that inform allocation decisions: which sectors are growth-oriented, which carry size risk, and how these exposures evolve across market regimes.
+Understanding what drives sector returns is fundamental to portfolio construction, risk management, and performance attribution. While individual stock analysis is well-studied, sector-level factor decomposition reveals structural characteristics that inform allocation decisions. This informs which sectors are growth-oriented, which carry size risk, and how these exposures evolve across market regimes.
 
 This project applies three progressively complex factor models to all 11 GICS sector ETFs, implements a practical trading strategy based on the findings, and examines the time-varying nature of factor exposures through rolling regressions.
 
@@ -60,7 +61,7 @@ A GARCH(1,1) model is estimated on OLS residuals via maximum likelihood:
 \begin{equation}
     \sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2
 \end{equation}
-using L-BFGS-B optimization with positivity and stationarity constraints ($\alpha + \beta < 1$). An EWMA ($\lambda = 0.94$) volatility model serves as a comparison.
+using L-BFGS-B (or alternative numerical optimizers) with positivity and stationarity constraints ($\alpha + \beta < 1$). An EWMA ($\lambda = 0.94$) volatility model serves as a comparison.
 
 \subsection{Sector Rotation Strategy}
 
@@ -74,13 +75,13 @@ A monthly momentum-based rotation strategy:
 
 \subsection{Cross-Sectional Analysis}
 
-Rolling 252-day regressions produce time-varying factor betas for each sector, visualized as heatmaps to reveal how risk profiles shift across market regimes (pre-COVID, COVID crash, recovery, 2022 rate hikes, 2024--2025 AI rally).
+Rolling 252-day regressions produce time-varying factor betas for each sector, visualized as heatmaps to reveal how risk profiles shift across market regimes (pre-COVID, COVID crash, recovery, 2022 rate hikes, 2024 to 2025 AI rally).
 
 \section{Key Findings}
 
 \subsection{Factor Model Insights}
 
-The factor models demonstrated high explanatory power, particularly the Fama-French specifications which explained 92--93\% of the technology sector's daily return variance. Analysis statistically confirmed the ``Sector DNA'' for technology (e.g., XLK), which exhibits a market beta $\beta_{\text{Mkt}} > 1$ (21\% more volatile than the market), negative SMB loading (indicating large-cap bias), and negative HML loading (indicating strong growth characteristics).
+The factor models demonstrated high explanatory power, particularly the Fama-French specifications which explained 92 to 93\% of the technology sector's daily return variance. Analysis statistically confirmed the ``Sector DNA'' for technology (e.g., XLK), which exhibits a market beta $\beta_{\text{Mkt}} > 1$ (21\% more volatile than the market), negative SMB loading (indicating large-cap bias), and negative HML loading (indicating strong growth characteristics).
 
 Adding Momentum and Profitability factors from the 4-Factor and 5-Factor models yielded statistically significant improvements in $R^2$ and residual diagnostics.
 
@@ -93,6 +94,17 @@ Rolling regressions confirm that sector factor exposures are not constant over t
     \includegraphics[width=\textwidth]{images/rolling_betas.png}
     \caption{Rolling 252-day Market and HML Betas for selected sectors. Heatmaps show significant non-stationarity, such as spikes in market correlation during crises.}
     \label{fig:rolling_betas}
+\end{figure}
+
+\subsection{GARCH Volatility Results}
+
+To appropriately model the heteroskedasticity in the residuals of the Fama-French 5-Factor model, a GARCH(1,1) specification was estimated via Maximum Likelihood for the Information Technology (XLK) sector. The optimization successfully converged with the following parameter estimates: $\omega = 0.000000$, $\alpha = 0.0374$, and $\beta = 0.9429$. The high persistence factor ($\alpha + \beta = 0.9802$) confirms the presence of strong volatility clustering. A Ljung-Box test on the squared standardized residuals returned a p-value of 0.8640, indicating that the GARCH(1,1) model effectively absorbed the remaining autoregressive conditional heteroskedasticity. Figure \ref{fig:garch_xlk} demonstrates the conditional volatility estimated by the GARCH(1,1) model compared to a standard EWMA baseline.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/garch_xlk.png}
+    \caption{Conditional Volatility of XLK Unexplained by FF5, estimated via GARCH(1,1) and plotted against an EWMA baseline.}
+    \label{fig:garch_xlk}
 \end{figure}
 
 \subsection{Sector Rotation Strategy}
@@ -112,8 +124,15 @@ The cross-sectional momentum strategy achieved comparable returns to the broader
         \toprule
         \textbf{Performance Metric} & \textbf{Momentum Rotation (Top 3)} & \textbf{SPY Benchmark} \\
         \midrule
-        Trailing CAGR & 16.51\% & 17.40\% \\
-        Maximum Drawdown & --15.97\% & --23.97\% \\
+        Annualized Return & 9.54\% & 12.03\% \\
+        Annualized Volatility & 15.47\% & 15.32\% \\
+        Sharpe Ratio & 0.53 & 0.68 \\
+        Sortino Ratio & 0.85 & 0.96 \\
+        Maximum Drawdown & $-16.35$\% & $-24.80$\% \\
+        Calmar Ratio & 0.58 & 0.48 \\
+        Average Turnover & 29.8\% & N/A \\
+        Hit Rate vs SPY & 43.2\% & N/A \\
+        Alpha vs SPY & $-1.11$\% (t=$-0.48$) & N/A \\
         \bottomrule
     \end{tabular}
     \caption{Summary of risk and return metrics.}
@@ -137,10 +156,10 @@ This analysis demonstrates that sector returns are predominantly explained by sy
 \noindent\textbf{Code Availability:} \url{https://github.com/tanishhky/Equity-Factor-Volatility-Analysis}
 
 \begin{thebibliography}{5}
-\bibitem{fama1993} E.~F. Fama and K.~R. French, ``Common risk factors in the returns on stocks and bonds,'' \textit{Journal of Financial Economics}, vol.~33, no.~1, pp.~3--56, 1993.
-\bibitem{carhart1997} M.~M. Carhart, ``On persistence in mutual fund performance,'' \textit{The Journal of Finance}, vol.~52, no.~1, pp.~57--82, 1997.
-\bibitem{fama2015} E.~F. Fama and K.~R. French, ``A five-factor asset pricing model,'' \textit{Journal of Financial Economics}, vol.~116, no.~1, pp.~1--22, 2015.
-\bibitem{bollerslev1986} T.~Bollerslev, ``Generalized autoregressive conditional heteroskedasticity,'' \textit{Journal of Econometrics}, vol.~31, no.~3, pp.~307--327, 1986.
+\bibitem{fama1993} E. F. Fama and K. R. French, ``Common risk factors in the returns on stocks and bonds,'' \textit{Journal of Financial Economics}, vol. 33, no. 1, pp. 3 to 56, 1993.
+\bibitem{carhart1997} M. M. Carhart, ``On persistence in mutual fund performance,'' \textit{The Journal of Finance}, vol. 52, no. 1, pp. 57 to 82, 1997.
+\bibitem{fama2015} E. F. Fama and K. R. French, ``A five-factor asset pricing model,'' \textit{Journal of Financial Economics}, vol. 116, no. 1, pp. 1 to 22, 2015.
+\bibitem{bollerslev1986} T. Bollerslev, ``Generalized autoregressive conditional heteroskedasticity,'' \textit{Journal of Econometrics}, vol. 31, no. 3, pp. 307 to 327, 1986.
 \end{thebibliography}
 
 \end{document}
