@@ -1,90 +1,90 @@
-# Quantitative Equity Sector Analysis & Strategy Backtesting
+# Volatility-Managed Factor Portfolios
 
-This project conducts a comprehensive quantitative analysis of the 11 GICS sectors of the U.S. stock market. It utilizes established academic factor models to deconstruct sector returns, identify risk exposures, and evaluates a dynamic sector rotation strategy through backtesting.
+A replication and extension of **Moreira & Muir (2017), "Volatility-Managed Portfolios"** on the
+Fama-French 5 factors plus Momentum. The question: if you scale a factor's exposure by the inverse
+of its recent realized variance, does risk-adjusted performance improve? The honest answer is
+**it depends strongly on the factor** - volatility timing earns large, significant alpha on the
+crash-prone factors (momentum and profitability) and does nothing for size, value, or investment.
 
-The primary goal is to move beyond simple performance metrics and understand the underlying drivers of sector risk and return, culminating in a practical, rule-based investment strategy.
+Built on the Ken French Data Library (daily FF5 + Momentum, 1963-2026). No API keys.
 
-![Factor Analysis Charts / Returns]([Insert Image/Result Here])
+```
+python src/vol_managed_factors.py
+```
 
-## Methodology: Using Sector ETFs as Proxies
+## Headline result
 
-To analyze sector-level performance, this project uses the 11 Sector SPDR ETFs. These are industry-standard, highly liquid, and investable instruments that serve as proxies for the performance of the Global Industry Classification Standard (GICS) sectors of the S&P 500. This approach allows for the analysis of broad sector trends without the complexity of building and maintaining a custom index from hundreds of individual stocks.
+For each factor `f`, the volatility-managed version is `f_managed[m] = (c / RV[m-1]) * f[m]`, where
+`RV[m-1]` is the realized variance over the prior month (sum of squared daily returns) and `c` is a
+single constant chosen so the managed series matches the original's full-sample volatility. The
+timing signal `1/RV[m-1]` uses only past data, so the leverage decision is out-of-sample; `c` is a
+scale-only normalization that affects neither the Sharpe ratio nor the spanning-regression t-stat.
 
-The following ETFs were used:
+The Moreira-Muir test regresses the managed factor on the original, `f_managed = alpha + beta*f + e`;
+a positive significant `alpha` means volatility timing earns return the buy-and-hold factor does not
+span. Full sample, monthly, net of 14 bps per unit of leverage turnover, Newey-West (HAC, 6 lags)
+t-statistics:
 
-* **XLK**: Technology
-* **XLF**: Financials
-* **XLV**: Health Care
-* **XLY**: Consumer Discretionary
-* **XLP**: Consumer Staples
-* **XLE**: Energy
-* **XLI**: Industrials
-* **XLB**: Materials
-* **XLU**: Utilities
-* **XLRE**: Real Estate
-* **XLC**: Communication Services
+| Factor | Sharpe (orig) | Sharpe (managed) | Sharpe (net of costs) | Spanning alpha (ann.) | t-stat |
+|---|---|---|---|---|---|
+| **Momentum** | 0.51 | **0.89** | 0.81 | **+8.9%** | **5.03** |
+| **RMW (profitability)** | 0.41 | **0.54** | 0.41 | **+2.3%** | **2.87** |
+| Mkt-RF | 0.48 | 0.46 | 0.40 | +2.1% | 1.37 |
+| HML (value) | 0.37 | 0.35 | 0.26 | +1.4% | 1.21 |
+| CMA (investment) | 0.42 | 0.32 | 0.19 | +0.3% | 0.45 |
+| SMB (size) | 0.15 | 0.09 | 0.01 | -0.2% | -0.18 |
 
----
+![Volatility-managed market factor vs buy-and-hold](output/figures/cum_mkt.png)
 
-## Key Analyses
+## What the result means
 
-The project is structured into three main parts:
+- **Momentum is the standout** (alpha 8.9%/yr, t=5.0; net Sharpe 0.81 vs 0.51). This is consistent
+  with Barroso & Santa-Clara (2015), "Momentum Has Its Moments": momentum crashes happen in
+  high-volatility states, so cutting exposure when variance spikes avoids the worst of them.
+- **Profitability (RMW)** also benefits significantly (t=2.9). Both winners are factors with strong
+  negative volatility-return dynamics and fat left tails.
+- **Size, value, and investment do not benefit** - their volatility carries less information about
+  future returns, so timing them adds turnover without alpha.
+- The **market factor's** managed alpha is positive but insignificant over the full 1963-2026 sample,
+  weaker than in Moreira & Muir's original window - an honest sign of partial decay as the result
+  became known.
 
-### 1. Expanded Factor Model Analysis
+This is a performance-attribution and factor-timing study, not a live trading system: the `1/RV`
+weights can imply large leverage, so the table reports turnover and net-of-cost Sharpe, and a real
+implementation would cap leverage (which would shrink the gains).
 
-This section applies multiple asset pricing models to determine the drivers of sector returns. The goal is to quantify a sector's sensitivity to systematic risk factors (its Betas) and measure its idiosyncratic, skill-based performance (its Alpha).
+## Secondary analyses
 
-* **Models Used:** Fama-French 3-Factor, Carhart 4-Factor, and the Fama-French 5-Factor models.
+These came first historically and now serve as context for the volatility-timing work above.
 
-### 2. Sector Rotation Strategy Backtesting
+**1. Sector factor attribution.** FF3, Carhart 4-factor, and FF5 regressions on the 11 SPDR sector
+ETFs (XLK, XLF, XLV, ...). The models explain ~92-93% of the technology sector's daily variance;
+tech shows market beta > 1, a large-cap tilt (negative SMB), and a growth tilt (negative HML), and
+adding Momentum and RMW measurably improves fit. Rolling-window regressions visualize time-varying
+betas: a market-wide correlation spike in the 2020 crash and the 2022 growth-to-value rotation.
 
-A quantitative momentum-based sector rotation strategy is developed and backtested against the S&P 500 (SPY) benchmark. The strategy invests in the top 3 sectors with the highest momentum over the preceding 6 months, rebalancing monthly.
+**2. Sector-momentum baseline (honest).** A top-3-of-11 sector rotation by trailing 6-month momentum,
+rebalanced monthly. Net of costs it returns 9.5% vs SPY's 12.0%, Sharpe 0.53 vs 0.68, with alpha of
+-1.1% (t=-0.48) - it lowers max drawdown (-16.4% vs -24.8%) but does **not** beat SPY on a
+risk-adjusted basis. That negative result is exactly what motivates the volatility-timing extension:
+naive cross-sectional momentum is hard to monetize, while timing a factor by its own variance is not.
 
-### 3. Cross-Sectional & Macroeconomic Risk Analysis
+## Repository
 
-This analysis uses rolling regressions to calculate time-varying factor betas for each sector. The results are visualized as heatmaps to show how sector risk profiles evolve in response to different market regimes.
+```
+src/vol_managed_factors.py        Moreira-Muir analysis (this README's headline)
+output/vol_managed_metrics.csv    full per-factor metrics
+output/figures/                   cumulative market factor, Sharpe comparison
+expanding_the_factor_models.ipynb FF3 / Carhart / FF5 sector attribution
+sector_rotation_strategy.ipynb    sector-momentum baseline
+cross_sectional_analysis.ipynb    rolling-beta heatmaps
+paper/paper_equity_factor.tex     write-up
+```
 
----
+## References
 
-## Findings & Importance
+- Moreira, A. & Muir, T. (2017). Volatility-Managed Portfolios. *Journal of Finance* 72(4).
+- Barroso, P. & Santa-Clara, P. (2015). Momentum Has Its Moments. *Journal of Financial Economics* 116(1).
+- Fama, E. & French, K. (2015). A Five-Factor Asset Pricing Model. *Journal of Financial Economics* 116(1).
 
-### Factor Model Insights
-
-* **High Explanatory Power**: The Fama-French models explained a very high portion (**92-93%**) of the tech sector's daily returns, validating their use for risk decomposition.
-* **Quantified Sector DNA**: The analysis statistically confirmed that the technology sector is **21% more volatile than the market** (`Mkt_RF` beta > 1), has a strong bias toward **large-cap stocks** (negative `SMB` beta), and exhibits a clear **growth characteristic** (negative `HML` beta).
-* **Modern Factors Matter**: Adding **Momentum** (`MOM`) and **Profitability** (`RMW`) factors significantly improved the model's accuracy. This demonstrates an understanding of modern asset pricing theory beyond the basic models and highlights that sector performance is also driven by trend-following and corporate financial health.
-
-***Importance for Risk/Quant Roles***: This demonstrates the ability to use econometric models to break down portfolio returns, identify key risk exposures, and determine if performance is due to market factors or genuine alpha—a core task in performance attribution and risk management.
-
-### Sector Rotation Strategy Performance
-
-* **Superior Risk Management**: The most critical finding was that the momentum strategy, while achieving similar returns to the benchmark (16.51% vs. 17.40% CAGR), did so with **significantly less risk**. Its maximum drawdown was **-15.97%** compared to the S&P 500's **-23.97%**.
-* **Practical Value**: This result is highly important as it shows the strategy's effectiveness in preserving capital during market downturns, a primary objective for any risk-conscious investor or portfolio manager.
-
-### Rolling Beta & Macroeconomic Insights
-
-* **Dynamic Risk Profiles**: The heatmaps reveal that sector risk profiles are not static. For example, the market beta heatmap shows a market-wide **correlation spike during the 2020 crash**, visually demonstrating how diversification benefits can evaporate during a crisis.
-* **Visualizing Market Regimes**: The value (HML) factor heatmap effectively captures the major **market rotation from growth to value stocks in 2022** as inflation and interest rates rose. This ability to visualize and interpret regime changes is crucial for tactical asset allocation and risk modeling.
-
----
-
-## Technologies Used
-
-* Python 3.9+
-* Pandas & NumPy
-* yfinance & pandas-datareader
-* Statsmodels
-* scikit-learn
-* Matplotlib & Seaborn
-
-## Setup and Usage
-
-1.  Clone the repository:
-    ```bash
-    git clone [https://github.com/your-username/Equity-Factor-Volatility-Analysis.git](https://github.com/your-username/Equity-Factor-Volatility-Analysis.git)
-    ```
-2.  Install the required packages:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3.  Run the analysis by executing the cells in the Jupyter Notebook (`main.ipynb`).
+*Data: Kenneth R. French Data Library. This is a research/educational project, not investment advice.*
