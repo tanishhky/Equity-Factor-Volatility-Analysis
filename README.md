@@ -53,6 +53,30 @@ This is a performance-attribution and factor-timing study, not a live trading sy
 weights can imply large leverage, so the table reports turnover and net-of-cost Sharpe, and a real
 implementation would cap leverage (which would shrink the gains).
 
+## The Cederburg critique, addressed head-on
+
+Cederburg, O'Doherty, Wang & Yan (2020, *JFE*) is the standard rebuttal to Moreira-Muir, and any
+honest replication has to engage it. Their three objections, and where this study stands:
+
+1. **A spanning alpha is not an implementable strategy.** Correct. The regression `f_managed =
+   alpha + beta*f + e` answers "does timing add unspanned return," not "could you have traded
+   this." In particular the volatility-normalizing constant `c` here is fitted on the full sample;
+   a real-time version must estimate it expanding-window. Because `c` is scale-only it does not
+   move the Sharpe or the t-stat, but it does change realized leverage paths, and leverage caps
+   bind exactly in the crises where the strategy earns its keep.
+2. **Out-of-sample fragility.** Cederburg et al. find that direct trading implementations of most
+   vol-managed factors fail OOS. Their own results, though, single out **momentum** as the factor
+   where volatility management is most robust, and that is precisely the factor that dominates
+   the table above (alpha +8.9%/yr, t=5.0). This study's per-factor heterogeneity (2 of 6 factors
+   benefit) is consistent with their critique of the "everything benefits" reading, not in
+   tension with it.
+3. **Sample dependence.** The market factor's decay noted above (insignificant t=1.37 over
+   1963-2026, weaker than the original window) is this critique showing up in this data. It is
+   reported rather than hidden.
+
+Net position: volatility timing is real but narrow - a momentum-crash hedge first (Barroso &
+Santa-Clara), a profitability overlay second, and not a general-purpose factor enhancement.
+
 ## Secondary analyses
 
 These came first historically and now serve as context for the volatility-timing work above.
@@ -84,6 +108,8 @@ paper/paper_equity_factor.tex     write-up
 ## References
 
 - Moreira, A. & Muir, T. (2017). Volatility-Managed Portfolios. *Journal of Finance* 72(4).
+- Cederburg, S., O'Doherty, M., Wang, F. & Yan, X. (2020). On the Performance of Volatility-Managed
+  Portfolios. *Journal of Financial Economics* 138(1).
 - Barroso, P. & Santa-Clara, P. (2015). Momentum Has Its Moments. *Journal of Financial Economics* 116(1).
 - Fama, E. & French, K. (2015). A Five-Factor Asset Pricing Model. *Journal of Financial Economics* 116(1).
 
