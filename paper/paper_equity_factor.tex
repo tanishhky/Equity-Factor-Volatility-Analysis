@@ -3,22 +3,32 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
-\usepackage{hyperref}
-\usepackage{setspace}
 \usepackage{float}
 \usepackage{enumitem}
 \usepackage{graphicx}
 \usepackage{xcolor}
-\onehalfspacing
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
 
-\hypersetup{colorlinks=true,linkcolor=blue!70!black,citecolor=blue!70!black,urlcolor=blue!70!black}
+\definecolor{accent}{HTML}{B07D1F}
+\titleformat{\section}{\large\bfseries\color{accent}}{\thesection}{0.6em}{}
+\captionsetup{font=small, labelfont=bf}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\itshape Volatility-Managed Factors}
+\fancyhead[R]{\footnotesize\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
 
 \title{\textbf{Volatility-Managed Factor Portfolios:\\A Replication and Extension on the\\Fama-French Five Factors and Momentum}}
 \author{Tanishk Yadav\\[2pt]\textit{MS Financial Engineering}\\New York University, Tandon School of Engineering\\New York, NY, USA}
-\date{}
+\date{June 2026}
 
 \begin{document}
 \maketitle
+\thispagestyle{fancy}
 
 \begin{abstract}
 \noindent
@@ -161,7 +171,6 @@ For contrast, a cross-sectional sector-momentum strategy (each month, hold the t
 Volatility timing is not a free lunch across the board; it is a targeted one. On the Fama-French five factors and momentum over six decades, scaling exposure by inverse recent variance earns large, significant, cost-surviving alpha on momentum and profitability, the factors whose crashes cluster in turbulent states, and little or nothing elsewhere. The honest, factor-dependent answer is more useful than a blanket claim, and it points to where conditional risk models add value in practice.
 
 \medskip
-\noindent\textbf{Code and data:} \url{https://github.com/tanishhky/Equity-Factor-Volatility-Analysis} (all results reproducible via \texttt{src/vol\_managed\_factors.py}; this is a research and educational project, not investment advice).
 
 \begin{thebibliography}{9}
 \bibitem{moreira2017} A. Moreira and T. Muir, ``Volatility-managed portfolios,'' \textit{The Journal of Finance}, vol. 72, no. 4, pp. 1611 to 1644, 2017.

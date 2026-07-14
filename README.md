@@ -105,6 +105,9 @@ cross_sectional_analysis.ipynb    rolling-beta heatmaps
 paper/paper_equity_factor.tex     write-up
 ```
 
+Submitted to SSRN, currently under editorial review:
+[Abstract ID 7113079](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7113079).
+
 ## References
 
 - Moreira, A. & Muir, T. (2017). Volatility-Managed Portfolios. *Journal of Finance* 72(4).
