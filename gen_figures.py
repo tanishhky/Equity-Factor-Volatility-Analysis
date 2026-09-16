@@ -17,7 +17,7 @@ os.makedirs("paper/images", exist_ok=True)
 
 # CONFIG
 START_DATE = "2015-01-01"
-END_DATE = "2025-12-31"
+END_DATE = "2026-08-22"
 SECTOR_ETFS = ["XLK", "XLF", "XLV", "XLY", "XLP", "XLE", "XLI", "XLB", "XLU", "XLRE", "XLC"]
 LOOKBACK_MONTHS = 6
 TOP_N = 3
