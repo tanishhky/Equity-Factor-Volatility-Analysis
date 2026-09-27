@@ -105,7 +105,7 @@ cross_sectional_analysis.ipynb    rolling-beta heatmaps
 paper/paper_equity_factor.tex     write-up
 ```
 
-Submitted to SSRN, currently under editorial review:
+Available as an SSRN preprint (posted July 2026; not peer reviewed):
 [Abstract ID 7113079](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7113079).
 
 ## References
