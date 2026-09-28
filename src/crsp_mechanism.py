@@ -103,7 +103,7 @@ def rolling_beta(R: np.ndarray, x: np.ndarray, win: int = BETA_WIN, min_obs: int
     on x (T market excess returns), over the window of `win` months ending at each row (inclusive)."""
     if R.shape[1] > block:
         parts = [_rolling_beta(R[:, i:i + block], x, win, min_obs) for i in range(0, R.shape[1], block)]
-        return np.hstack([p[0] for p in parts]), np.hstack([p[1] for p in parts])
+        return tuple(np.hstack([p[k] for p in parts]) for k in range(3))
     return _rolling_beta(R, x, win, min_obs)
 
 
@@ -125,10 +125,11 @@ def _rolling_beta(R, x, win, min_obs):
         s2 = (Syy - b * Sxy) / (n - 2)
         se2 = s2 / Sxx
     ok = (n >= min_obs) & (Sxx > 0)
-    beta, var = np.full((T, N), np.nan), np.full((T, N), np.nan)
+    beta, var, res = np.full((T, N), np.nan), np.full((T, N), np.nan), np.full((T, N), np.nan)
     beta[win - 1:][ok] = b[ok]
     var[win - 1:][ok] = se2[ok]
-    return beta, var
+    res[win - 1:][ok] = s2[ok]
+    return beta, var, res
 
 
 def quantile_density(x: np.ndarray, c: float) -> float:
@@ -168,10 +169,11 @@ def build_panel(ret: pd.DataFrame, me: pd.DataFrame, nyse: pd.DataFrame, mkt: pd
     # every stock and cancels in the sort
     RF_mkt = pd.Series(rm * (1 - rm - rf)).rolling(FORM).sum().shift(1).values
     # betas from months m-71..m-12: rolling window ending at m-12
-    b_end, v_end = rolling_beta(R - rf[:, None], rm)
+    b_end, v_end, s_end = rolling_beta(R - rf[:, None], rm)
     beta = np.full(R.shape, np.nan)
     bvar = np.full(R.shape, np.nan)
-    beta[12:], bvar[12:] = b_end[:-12], v_end[:-12]
+    ivar = np.full(R.shape, np.nan)
+    beta[12:], bvar[12:], ivar[12:] = b_end[:-12], v_end[:-12], s_end[:-12]
     rows = []
     MEv, NY = me.values.astype("float64"), nyse.values.astype(bool)
     for t in range(T - 1):
@@ -201,7 +203,8 @@ def build_panel(ret: pd.DataFrame, me: pd.DataFrame, nyse: pd.DataFrame, mkt: pd
             sb2 = max(np.var(beta[t][bm], ddof=1) - np.mean(bvar[t][bm]), 0.0)
             rg = r_i[gmask]
             q_hi, q_lo = (rg >= hi_bp).mean(), (rg <= lo_bp).mean()
-            pred.append(sb2 * RF_mkt[t] * (quantile_density(rg, hi_bp) / q_hi + quantile_density(rg, lo_bp) / q_lo))
+            dens = quantile_density(rg, hi_bp) / q_hi + quantile_density(rg, lo_bp) / q_lo
+            pred.append(sb2 * RF_mkt[t] * dens)
             row[f"sigma_b2_{g}"] = sb2
         row["mom_vw"] = 0.5 * (legs["SH"][0] + legs["BH"][0]) - 0.5 * (legs["SL"][0] + legs["BL"][0])
         row["mom_ew"] = 0.5 * (legs["SH"][1] + legs["BH"][1]) - 0.5 * (legs["SL"][1] + legs["BL"][1])
@@ -221,10 +224,10 @@ def t1(panel: pd.DataFrame) -> dict:
             "r2": float(res.rsquared), "corr": float(d.corr().iloc[0, 1]), "months": len(d)}
 
 
-def t2(panel: pd.DataFrame, col: str) -> dict:
-    d = panel[[col, "beta_pred", "R_M_next", "RF"]].dropna()
+def t2(panel: pd.DataFrame, col: str, beta: str = "beta_pred") -> dict:
+    d = panel[[col, beta, "R_M_next", "RF"]].dropna()
     y = d[col]
-    X = pd.DataFrame({"const": 1.0, "c": d["beta_pred"] * d["R_M_next"], "d": d["R_M_next"]})
+    X = pd.DataFrame({"const": 1.0, "c": d[beta] * d["R_M_next"], "d": d["R_M_next"]})
     res = sm.OLS(y, X).fit(cov_type="HAC", cov_kwds={"maxlags": 12})
     wald = res.wald_test("c = 1, d = 0", use_f=False, scalar=True)
     base = sm.OLS(y, sm.add_constant(d["R_M_next"])).fit()
