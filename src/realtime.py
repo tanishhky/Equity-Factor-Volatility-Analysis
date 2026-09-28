@@ -19,8 +19,8 @@ Four checks, each using only information up to month m-1 to set the position in 
    mix of the original and managed factor, with weights estimated on an expanding
    window, rescaled to the original factor's real-time volatility. If volatility timing
    adds value an investor could have captured, this mix beats the original factor.
-4. Post-sample. Moreira and Muir's data end in 2015; 2016 onward is out of sample for
-   the published result.
+4. Post-sample. Moreira and Muir's data end in 2015 and Cederburg et al.'s in December
+   2016, so 2017 onward is out of sample for both.
 
 Sharpe differences are tested with a circular block bootstrap (12-month blocks), and
 the six factors' p-values are adjusted with Holm's step-down procedure.
@@ -28,6 +28,7 @@ the six factors' p-values are adjusted with Holm's step-down procedure.
 Outputs:
   output/realtime_summary.csv     one row per factor and strategy variant
   output/realtime_subperiods.csv  spanning alpha and real-time Sharpe by subperiod
+  output/realtime_terciles.csv    mean factor return by real-time exposure tercile (mechanism)
   output/figures/realtime_mom.png cumulative real-time managed vs original momentum
 
 Run: python src/realtime.py
@@ -50,7 +51,7 @@ from vol_managed_factors import FACTORS, COST_PER_TURN, OUT, FIG, load_factors, 
 
 BURN_IN = 120          # months of history before the first real-time position (10 years)
 CAPS = [None, 2.0, 1.5]
-POST_START = "2016-01-01"   # Moreira and Muir (2017) sample ends in 2015
+POST_START = "2017-01-01"   # Moreira-Muir (2017) data end in 2015, Cederburg et al. (2020) in Dec 2016
 N_BOOT = 5000
 BLOCK = 12
 SEED = 20260928
@@ -171,7 +172,7 @@ def main() -> None:
     df = load_factors()
     print(f"Ken French daily factors: {df.index.min().date()} to {df.index.max().date()}")
 
-    rows, sub_rows, series = [], [], {}
+    rows, sub_rows, terc_rows, series = [], [], [], {}
     p_managed, p_combo = {}, {}
     for fac in FACTORS:
         m = to_monthly(df[fac])
@@ -203,7 +204,7 @@ def main() -> None:
             if cap == 1.5:
                 p_managed[fac], p_combo[fac] = p_man, p_com
                 series[fac] = rt.assign(net=net, combo=combo)
-                for name, mask in [("pre-2016", rt.index < POST_START), ("2016 onward", rt.index >= POST_START)]:
+                for name, mask in [("1973-2016", rt.index < POST_START), ("2017 onward", rt.index >= POST_START)]:
                     a_s, t_s = spanning_alpha(fm[mask], f[mask])
                     _, p_s = boot_sharpe_diff(net[mask], f[mask], rng)
                     _, pc_s = boot_sharpe_diff(combo[mask], f[mask], rng)
@@ -213,6 +214,11 @@ def main() -> None:
                         "sharpe_combo": sharpe(combo[mask]), "alpha_ann": a_s, "alpha_t": t_s,
                         "p_net_vs_orig": p_s, "p_combo_vs_orig": pc_s,
                     })
+                    # mechanism: where does the factor earn its return, calm or turbulent months?
+                    r = rt[mask]
+                    terc = pd.qcut(r["w"], 3, labels=["turbulent (low exposure)", "middle", "calm (high exposure)"])
+                    for lab, val in (r.groupby(terc, observed=True)["f"].mean() * 12).items():
+                        terc_rows.append({"factor": fac, "period": name, "tercile": lab, "mean_ann": val})
 
         # robustness: inverse-volatility scaling, 1.5x cap
         rt = realtime_positions(m, 1.5, power=0.5)
@@ -234,6 +240,8 @@ def main() -> None:
     os.makedirs(FIG, exist_ok=True)
     table.round(4).to_csv(os.path.join(OUT, "realtime_summary.csv"), index=False)
     subs.round(4).to_csv(os.path.join(OUT, "realtime_subperiods.csv"), index=False)
+    terc = pd.DataFrame(terc_rows).pivot_table(index=["factor", "period"], columns="tercile", values="mean_ann")
+    terc.round(4).to_csv(os.path.join(OUT, "realtime_terciles.csv"))
 
     pd.set_option("display.width", 200)
     pd.set_option("display.float_format", lambda x: f"{x:,.3f}")
@@ -245,6 +253,8 @@ def main() -> None:
     print("Holm-adjusted p-values (cap 1.5x): combination vs original", {k: round(v, 3) for k, v in adj_c.items()})
     print("\nSubperiods (cap 1.5x):\n")
     print(subs.to_string(index=False))
+    print("\nAnnualized factor return by real-time exposure tercile (cap 1.5x):\n")
+    print(terc.to_string())
 
     s = series["Mom"]
     fig, ax = plt.subplots(figsize=(10, 4.5))
@@ -252,7 +262,7 @@ def main() -> None:
     ax.plot(s.index, np.nancumsum(s["net"]), color="#1f4e79", lw=1.6, label="Real-time managed, 1.5x cap, net of costs")
     ax.plot(s.index, np.nancumsum(s["combo"]), color="#c0392b", lw=1.2, ls="--", label="Real-time combination")
     ax.axvline(pd.Timestamp(POST_START), color="#555", lw=0.8, ls=":")
-    ax.text(pd.Timestamp(POST_START), ax.get_ylim()[1] * 0.95, " Moreira-Muir sample ends", fontsize=8, va="top")
+    ax.text(pd.Timestamp(POST_START), ax.get_ylim()[1] * 0.95, " published samples end", fontsize=8, va="top")
     ax.set_ylabel("cumulative sum of monthly returns")
     ax.set_title("Momentum: real-time volatility management")
     ax.legend(frameon=False, fontsize=9)
