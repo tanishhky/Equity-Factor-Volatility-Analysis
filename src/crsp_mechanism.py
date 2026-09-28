@@ -151,8 +151,9 @@ def build_panel(ret: pd.DataFrame, me: pd.DataFrame, nyse: pd.DataFrame, mkt: pd
     idx = ret.index
     mk = mkt.reindex(idx)
     rf, rm = mk["RF"].values, mk["Mkt-RF"].values
-    R = ret.values
-    logr = np.log1p(R)
+    R = ret.values.astype("float64")
+    with np.errstate(divide="ignore", invalid="ignore"):
+        logr = np.where(R > -1, np.log1p(R), np.nan)       # a -100% month ends the stock; no window may contain it
     # formation return over months m-11..m-1 (all 11 required)
     c = np.cumsum(np.vstack([np.zeros((1, R.shape[1])), np.nan_to_num(logr)]), axis=0)
     cnt = np.cumsum(np.vstack([np.zeros((1, R.shape[1])), np.isfinite(logr)]), axis=0)
@@ -172,7 +173,7 @@ def build_panel(ret: pd.DataFrame, me: pd.DataFrame, nyse: pd.DataFrame, mkt: pd
     bvar = np.full(R.shape, np.nan)
     beta[12:], bvar[12:] = b_end[:-12], v_end[:-12]
     rows = []
-    MEv, NY = me.values, nyse.values.astype(bool)
+    MEv, NY = me.values.astype("float64"), nyse.values.astype(bool)
     for t in range(T - 1):
         r_i, size, nx = form[t], MEv[t], NY[t]
         valid = np.isfinite(r_i) & np.isfinite(size) & (size > 0)
@@ -249,6 +250,8 @@ def outcome(t: dict) -> str:
 def load_wide():
     d = pd.read_parquet(os.path.join(CACHE, "msf_v2.parquet"))
     d["date"] = month_end(d["mthcaldt"])
+    for c in ("mthret", "mthcap", "mthprc", "shrout"):
+        d[c] = pd.to_numeric(d[c], errors="coerce").astype("float64")
     me = d["mthcap"].where(d["mthcap"] > 0, (d["mthprc"].abs() * d["shrout"]))
     d = d.assign(me=me, nyse=(d["primaryexch"] == "N").astype(float))
     d = d.drop_duplicates(["permno", "date"], keep="last")
