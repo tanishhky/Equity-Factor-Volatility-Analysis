@@ -2,7 +2,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[margin=1in]{geometry}
-\usepackage{amsmath,amssymb}
+\usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{caption}
@@ -12,11 +12,13 @@
 \usepackage{placeins}
 \captionsetup{font=small, labelfont=bf}
 \setstretch{1.12}
+\newtheorem{proposition}{Proposition}
 \input{generated/numbers.tex}
 \input{generated/adaptive_numbers.tex}
+\input{generated/mechanism_numbers.tex}
 \makeatletter\newcommand{\rows}[1]{\@@input #1 }\makeatother
 
-\title{Calm Months, Crash Months:\\Volatility-Managed Factors in Real Time and After Publication}
+\title{Calm Months, Crash Months:\\Why Volatility Management Pays for Momentum and Not the Market}
 \author{Tanishk Yadav\thanks{Department of Finance and Risk Engineering, New York University Tandon School of Engineering, New York, NY, USA. Email: \texttt{tanishkyadav@nyu.edu}.}}
 \date{September 2026}
 
@@ -25,73 +27,38 @@
 
 \begin{abstract}
 \noindent
-Volatility-managed factors look strong in spanning regressions, but those regressions describe a portfolio no investor could have formed in advance. We rebuild the Fama-French five factors and momentum so that each month's exposure uses only prior data, is capped at 1.5 times and pays trading costs, and we estimate variance from every daily return with a one-month half-life, a learning rate chosen on pre-2017 data from 24 variants in a pre-registered comparison. From \RTstart{} to \RTend{}, only momentum improves significantly, from \MomOrig{} to \MomNet{}. After the published samples end, the canonical prior-month rule adds nothing to momentum, while the daily-data rule keeps part of the gain at half the turnover; over 116 months neither difference is statistically significant. Choosing the learning rate by recent performance does worse than fixing it, and no real-time combination beats its original factor after costs. An exact decomposition of the Sharpe ratio into a return channel and a risk channel explains the pattern.
+Built with only past data, capped leverage and trading costs, volatility management improves momentum, from a Sharpe ratio of \MomOrig{} to \MomNet{} over \RTstart{} to \RTend{}, but none of the other Fama-French factors. We explain why. Sorting stocks on past returns loads momentum on the market in proportion to the market's own return over the formation window. Using Tweedie's formula, we derive this beta in closed form from two cross-sectional quantities, the dispersion of stock betas and the density of past returns at the portfolio breakpoints, and test it on CRSP with no fitted parameter. Against realized betas from \MechFirstYear{} to 2025, the prediction has a slope of \MechCFull{} (standard error \MechCSeFull{}) and \MechShareFull\% of the explanatory power of an in-sample regression, but on average it overstates the beta by \MechDAbsFull{}, so the joint test of an exact prediction rejects. Months after market declines are \LOneShareMonths\% of the sample and supply \LOneShareCov\% of the covariance through which timing adds to momentum's return. If the market's premium rises with its variance, the same logic implies that the market should not be volatility-timed; in our sample it is not improved by it.
 
-\medskip\noindent\textbf{Keywords:} volatility-managed portfolios, factor timing, momentum, learning rate, out-of-sample performance
+\medskip\noindent\textbf{Keywords:} volatility-managed portfolios, momentum, time-varying beta, Tweedie's formula, factor timing
 
 \noindent\textbf{JEL:} G11, G12, G14
 \end{abstract}
 
 \section{Introduction}
 
-\citet{moreira2017} show that scaling a factor's exposure by the inverse of its recent variance raises the Sharpe ratio of many equity factors. Their evidence is a spanning regression of the managed factor on the original. A positive intercept means some mix of the two beats the original, but the mix uses full-sample moments no investor had. \citet{cederburg2020} make the point directly: across 103 strategies ending in December 2016, real-time combinations of managed and original portfolios usually fail to beat the original. \citet{liu2019} show that the market-timing version relies on a scale constant fitted with future data, and \citet{barroso2021} that transaction costs erase most of the gains, with the market and momentum partly robust. Momentum is the most consistent survivor, in line with the crash evidence of \citet{barroso2015} and \citet{daniel2016}.
+\citet{moreira2017} show that scaling a factor's exposure by the inverse of its recent variance raises the Sharpe ratio of many equity factors. Their evidence is a spanning regression that uses full-sample moments no investor had. In real time the gains mostly disappear \citep{cederburg2020,liu2019,barroso2021}, and momentum is the consistent survivor, in line with the crash evidence of \citet{barroso2015} and \citet{daniel2016}. Why momentum, and why not the market, for which the rule was first proposed?
 
-This letter asks three questions. Which of the six most widely used equity factors improve once every position uses only past data, leverage is capped and costs are paid? What happened after the published samples ended? Moreira and Muir's data end in 2015 and Cederburg et al.'s in 2016, so January 2017 to \RTend{} is out of sample for both, and \citet{mclean2016} find that anomaly returns are 58\% lower after publication. And does the rule stop adapting? Its estimators learn at fixed or vanishing rates; we test whether other learning rates keep it working.
+We answer in three steps. First, we rebuild the six most widely used equity factors so that every position uses only past data, leverage is capped and costs are paid; only momentum improves. An exact decomposition shows why: timing adds return only when the factor earns less in turbulent months, and among the six factors that holds for momentum alone. Second, we derive where momentum's turbulent-month losses come from. Momentum is long past winners and short past losers, so after a market decline its short leg holds the high-beta stocks and the factor is short the market \citep{grundy2001,daniel2016}. Proposition~\ref{prop:beta} gives this beta in closed form from two quantities measured in the cross-section of stocks, and we test it on CRSP without fitting any parameter. Third, we show what volatility timing should time: only the part of a premium that is not paid for market risk. If the market's premium rises with its variance \citep{merton1980}, the market should not be timed at all.
 
-The answers are narrow. Only momentum's managed version beats the original over the full sample. After the published samples end, the canonical rule, which scales by the prior month's realized variance, loses momentum's gain, while a rule that uses every daily return with a one-month half-life keeps part of it at half the turnover; neither difference is statistically significant over a decade. Profitability, whose managed version earns a significant spanning alpha in \citet{cederburg2020}, shows no significant real-time gain. An exact decomposition into a return channel and a risk channel explains the pattern.
+The contribution is the formula and its parameter-free test. The sign of momentum's conditional beta is known \citep{grundy2001,daniel2016}; we derive its size and test it without estimating anything from momentum's returns. The main test was specified in a plan committed to the code repository before the CRSP data were downloaded, and every later test before it was run (\texttt{paper/PLAN\_mechanism.md}); the plan records each amendment and every negative result.
 
-\section{Data and method}
+\section{Data and real-time method}
 
-We use the market, size (SMB), value (HML), profitability (RMW), investment (CMA) and momentum factors of \citet{fama2015} and \citet{carhart1997} from the Kenneth R. French Data Library, July 1963 to \RTend{}. Monthly returns $f_m$ come from the monthly files; daily returns $r_d$ serve only to measure risk. The canonical signal of \citet{moreira2017} is the prior month's realized variance,
+We use the market, size (SMB), value (HML), profitability (RMW), investment (CMA) and momentum factors of \citet{fama2015} and \citet{carhart1997} from the Kenneth R. French Data Library, July 1963 to \RTend{}. Monthly returns $f_m$ come from the monthly files; daily returns $r_d$ serve only to measure risk. The variance signal uses every daily return with a one-month half-life,
 \begin{equation}
-\mathrm{RV}_m=\sum_{d\in m}\left(r_d-\bar r_m\right)^2 ,
-\end{equation}
-where $\bar r_m$ is the mean daily return in month $m$. Our main signal uses every daily return with an exponential learning rate:
-\begin{equation}
-\hat\sigma^2_d=\lambda\,\hat\sigma^2_{d-1}+(1-\lambda)\,r_d^2,\qquad \lambda=2^{-1/21},\qquad S_m=21\,\hat\sigma^2_{d(m)} ,
+\hat\sigma^2_d=\lambda\,\hat\sigma^2_{d-1}+(1-\lambda)\,r_d^2,\qquad \lambda=2^{-1/21},\qquad S_m=21\,\hat\sigma^2_{d(m)},
 \label{eq:ewma}
 \end{equation}
-where $d(m)$ is the last trading day of month $m$. A 21-day half-life puts about half the weight on the latest month and keeps some memory of earlier ones. It is one of the 24 variants of Section~\ref{sec:learning}, chosen for momentum on 1973 to 2016 data under a plan committed before any variant was run; we apply it to all six factors so that the paper reports one rule, and report the canonical rule, $S_m=\mathrm{RV}_m$, alongside. French's daily momentum factor is re-formed daily, so for momentum both signals proxy the variance of the monthly-formed factor. The data are today's vintage, which French revises as CRSP and Compustat update, not the returns as first published.
+with $d(m)$ the last trading day of month $m$. This learning rate was chosen for momentum on 1973 to 2016 data among 24 pre-registered variants (\texttt{paper/PLAN\_adaptive.md}); a rule that switches each month to the variant with the best trailing ten-year Sharpe ratio did worse than the canonical rule (\AdMomRuleTwo{} against \AdMomRuleTwoCur{} from \AdMomRuleTwoStart{}, $p=\AdMomRuleTwoP{}$). The canonical prior-month realized variance of \citet{moreira2017} is reported alongside.
 
-\paragraph{Managed factor.} The exposure held in month $m$ is set at the end of month $m-1$ (Figure~\ref{fig:design}):
+The exposure held in month $m$ is set at the end of month $m-1$:
 \begin{equation}
-w_m=\min\!\left(\frac{c_{m-1}}{S_{m-1}},\,L\right),\qquad
-c_{m-1}=\frac{\operatorname{sd}\left(f_1,\dots,f_{m-1}\right)}{\operatorname{sd}\left(f_s/S_{s-1}:\ s\le m-1\right)} .
+w_m=\min\!\left(\frac{c_{m-1}}{S_{m-1}},\,1.5\right),\qquad
+c_{m-1}=\frac{\operatorname{sd}\left(f_1,\dots,f_{m-1}\right)}{\operatorname{sd}\left(f_s/S_{s-1}:\ s\le m-1\right)},
 \end{equation}
-The scale $c_{m-1}$ is the expanding-window version of Moreira and Muir's full-sample constant: it makes the uncapped managed factor as volatile as the original over the data seen so far. The first 120 months are a burn-in, so positions start in \RTstart{} (\RTmonths{} months). The cap is $L=1.5$, the higher of the two caps (1 and 1.5) in Moreira and Muir's Table IV. Changing exposure costs $\kappa=14$ basis points per unit, the highest of their cost levels, so the managed return is
-\begin{equation}
-f^{\sigma}_m=w_m f_m-\kappa\left|w_m-w_{m-1}\right| .
-\end{equation}
+an expanding-window version of Moreira and Muir's constant with their higher cap. The first 120 months are a burn-in, so positions start in \RTstart{} (\RTmonths{} months). Exposure changes cost 14 basis points per unit, their highest cost level: $f^{\sigma}_m=w_m f_m-\kappa\left|w_m-w_{m-1}\right|$. Sharpe ratios are compared with the studentized circular block bootstrap of \citet{ledoit2008} (12-month blocks, 4,999 resamples), Holm-adjusted across the six factors \citep{holm1979}.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{images/fig_design.png}
-\caption{Study design. Panel (a): sample windows. The published samples start in the late 1920s for the market, size, value and momentum factors and in 1963 for profitability and investment; Moreira and Muir's end in 2015 and Cederburg et al.'s in December 2016. Our first ten years only feed the scale constant. Panel (b): the position held in month $m$ uses only information available at the end of month $m-1$.}
-\label{fig:design}
-\end{figure}
-
-\paragraph{Spanning regression.} $f^{\sigma}_m=\alpha+\beta f_m+\varepsilon_m$, with Newey-West $t$-statistics (six lags). Because $f^\sigma$ is net of costs, $\alpha$ is the return a static position in the original could not replicate, after costs.
-
-\paragraph{Real-time combination.} Following \citet{cederburg2020}, from month 60 of the real-time sample the investor forms the mean-variance mix of the original and managed factor using the expanding window $s<m$:
-\begin{equation}
-\begin{pmatrix}a_m\\ b_m\end{pmatrix}=\hat\Sigma_{m-1}^{-1}\hat\mu_{m-1},\qquad
-e_m=\operatorname{clip}\!\left(k_m\,(a_m+b_m w_m),\,-L,\,L\right),
-\end{equation}
-where $\hat\mu$ and $\hat\Sigma$ are the mean and covariance of $(f_s,f^\sigma_s)$ and $k_m$ scales the mix to the original factor's volatility. Since $f^\sigma=w f$ before costs, the mix is a single exposure $e_m$ to the original factor, capped like the managed factor and charged the same cost: $f^{c}_m=e_m f_m-\kappa|e_m-e_{m-1}|$.
-
-\paragraph{Inference.} For two return series with sample moments $\hat v=(\hat\mu_1,\hat\mu_2,\hat\gamma_1,\hat\gamma_2)$, where $\hat\gamma_i$ is the mean of squared returns, the Sharpe difference is
-\begin{equation}
-\hat\Delta=g(\hat v)=\frac{\hat\mu_1}{\sqrt{\hat\gamma_1-\hat\mu_1^2}}-\frac{\hat\mu_2}{\sqrt{\hat\gamma_2-\hat\mu_2^2}},\qquad
-\operatorname{se}(\hat\Delta)=\sqrt{\nabla g(\hat v)^{\top}\hat\Psi\,\nabla g(\hat v)/T} ,
-\end{equation}
-with $\hat\Psi$ a Bartlett long-run covariance of the four moment series, with lag length equal to the bootstrap block length. We test $\Delta=0$ with the studentized circular block bootstrap of \citet{ledoit2008}: 4,999 resamples of 12-month blocks, each with its own block-based standard error $\operatorname{se}^*$. The $p$-value is $\big(1+\#\{|\hat\Delta^*-\hat\Delta|/\operatorname{se}^*\ge|\hat\Delta|/\operatorname{se}\}\big)/5000$, and the 95\% interval is $\hat\Delta\pm q^*_{0.95}\operatorname{se}$, where $q^*_{0.95}$ is the 95th percentile of the resampled statistic. Within each family of six factors, $p$-values are adjusted with the step-down procedure of \citet{holm1979}: with ordered $p_{(1)}\le\dots\le p_{(6)}$, the adjusted value is $\tilde p_{(j)}=\max_{i\le j}\min\{1,(7-i)\,p_{(i)}\}$. A test that the Sharpe gain differs across two periods treats the periods as independent and combines their bootstrap draws in the same studentized way.
-
-\paragraph{Why timing can help or hurt.} For any exposure series, the mean managed return decomposes exactly as
-\begin{equation}
-\overline{f^\sigma}=\bar w\,\bar f+\widehat{\operatorname{cov}}(w_m,f_m)-\kappa\,\overline{|\Delta w|} ,
-\label{eq:decomp}
-\end{equation}
-with the covariance taken over the same months. The first term is what a constant exposure $\bar w$ would earn, and a constant exposure has the original factor's Sharpe ratio. Dividing the managed Sharpe ratio by the original's therefore gives, whenever $\bar f>0$,
+\paragraph{Why timing can help or hurt.} The mean managed return decomposes exactly as $\overline{f^\sigma}=\bar w\,\bar f+\widehat{\operatorname{cov}}(w_m,f_m)-\kappa\,\overline{|\Delta w|}$. A constant exposure $\bar w$ has the original factor's Sharpe ratio, so whenever $\bar f>0$,
 \begin{equation}
 \frac{\mathrm{SR}(f^\sigma)}{\mathrm{SR}(f)}=
 \underbrace{\left(1+\frac{\widehat{\operatorname{cov}}(w_m,f_m)-\kappa\,\overline{|\Delta w|}}{\bar w\,\bar f}\right)}_{M:\ \text{return channel}}
@@ -99,11 +66,9 @@ with the covariance taken over the same months. The first term is what a constan
 \underbrace{\frac{\bar w\,\operatorname{sd}(f)}{\operatorname{sd}(f^\sigma)}}_{R:\ \text{risk channel}} .
 \label{eq:channels}
 \end{equation}
-$M$ measures the return that timing adds, net of costs, relative to a constant exposure of the same average size; $R$ measures how much volatility timing removes relative to that exposure. \citet{moreira2017} motivate $w\propto1/\sigma^2$ with the mean-variance weight $w^*_m=\mu_m/(\gamma\sigma^2_m)$. If the expected return $\mu_m$ does not vary with variance, the covariance is zero in expectation and the whole gain comes through $R$. If $\mu_m$ is lower in turbulent months, as in the momentum crashes of \citet{daniel2016}, the covariance adds a second gain through $M$. If $\mu_m$ is higher in turbulent months, $M$ falls below one and the rule scales down exactly when the factor pays.
+$R$ is the risk that volatility timing removes. $M$ is the return it adds or gives up: it exceeds one only if the factor earns more in calm months, when the rule holds more of it.
 
-\section{Results}
-
-\subsection{The full real-time sample}
+\section{Only momentum improves}
 
 \begin{table}[ht]
 \centering\small\setlength{\tabcolsep}{4pt}
@@ -117,46 +82,11 @@ Factor & Original & Canonical & Daily-data & $p$ (Holm) & Original & Combination
 \rows{generated/table_full.tex}
 \bottomrule
 \end{tabular}}
-\caption{Annualized Sharpe ratios, \RTstart{} to \RTend{} (\RTmonths{} months), exposure capped at 1.5, costs of 14 basis points per unit of exposure change. Canonical is the prior-month realized-variance rule; daily-data is the main specification, equation (\ref{eq:ewma}). The combination and the largest loss use the daily-data rule. The combination starts in \ComboStart{}; its first column is the original factor over the same months. $p$-values are Ledoit-Wolf studentized block-bootstrap tests of equal Sharpe ratios against the original factor, Holm-adjusted across the six factors; bold marks adjusted $p<0.05$. Largest loss is the maximum peak-to-trough decline of summed monthly returns, in percentage points, with each series scaled to the original factor's volatility.}
+\caption{Annualized Sharpe ratios, \RTstart{} to \RTend{}, exposure capped at 1.5, net of 14 basis points per unit of exposure change. Canonical is the prior-month realized-variance rule; daily-data is equation (\ref{eq:ewma}). The combination is the real-time mix of original and managed factor of \citet{cederburg2020}, from \ComboStart{}. $p$-values test equal Sharpe ratios against the original factor, Holm-adjusted across the six factors; bold marks adjusted $p<0.05$. Largest loss is the maximum peak-to-trough decline of summed monthly returns, in percentage points, at the original factor's volatility.}
 \label{tab:full}
 \end{table}
 
-In Table~\ref{tab:full}, managed momentum raises the Sharpe ratio from \MomOrig{} to \MomNet{} after costs (95\% interval for the gain \MomDiffLo{} to \MomDiffHi{}; $p=\MomP{}$, Holm-adjusted \MomPHolm{}). The canonical rule gives \MomCanon{}. The two rules are not significantly different ($p=\MomPVsCanon{}$), but the daily-data rule trades half as much: a monthly exposure change of \MomTurn{} against \MomTurnCanon{}, and \TurnRatioMin{} to \TurnRatioMax\% of the canonical turnover across the six factors. At equal volatility, momentum's largest loss falls from \MomDDOrig{} to \MomDDNet{} percentage points, and its gain would survive costs of up to \MomBreakeven{} basis points per unit of exposure change, about \MomBreakevenX{} times the assumed level.
-
-No other factor improves significantly. Profitability is the instructive case: its managed version earns a spanning alpha significant at 1\% in \citet{cederburg2020}, but in real time its net spanning alpha is \RmwAlpha\% a year ($t=\RmwAlphaT{}$) and its Sharpe ratio moves from \RmwOrig{} to \RmwNet{} ($p=\RmwP{}$, unadjusted), a gap between in-sample alpha and real-time gains that \citet{cederburg2020} trace to unstable spanning regressions.
-
-No real-time combination beats its original factor after adjusting for six tests. For momentum it rises from \MomComboOrig{} to \MomCombo{} ($p=\MomComboP{}$ unadjusted, \MomComboPHolm{} adjusted). Removing the cap lifts it to \MomComboUncapSR{} ($p=\MomComboUncapP{}$, unadjusted) and removing costs as well to \MomComboFreeSR{} ($p=\MomComboFreeP{}$), consistent with Cederburg et al.'s finding that momentum's combination adds value before frictions.
-
-\subsection{After the published samples}
-
-\begin{table}[ht]
-\centering\small\setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccccccccc}
-\toprule
- & \multicolumn{5}{c}{1973 to 2016 (\PreMonths{} months)} & \multicolumn{5}{c}{2017 to 2026 (\PostMonths{} months)} \\
-\cmidrule(lr){2-6}\cmidrule(lr){7-11}
-Factor & Original & Canonical & Daily-data & $p$ (Holm) & $\alpha$, \% ($t$) & Original & Canonical & Daily-data & $p$ (Holm) & $\alpha$, \% ($t$) \\
-\midrule
-\rows{generated/table_periods.tex}
-\bottomrule
-\end{tabular}}
-\caption{Real-time managed factors (cap 1.5, net of costs) before and after the published samples end. Sharpe ratios are annualized; $p$-values test the daily-data rule against the original factor and are Holm-adjusted within each period; $\alpha$ is the daily-data rule's annualized net spanning alpha with its Newey-West $t$-statistic.}
-\label{tab:post}
-\end{table}
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{images/fig_sharpe_gains.png}
-\caption{Sharpe ratio gain of the daily-data rule over the original factor, with 95\% Ledoit-Wolf studentized bootstrap intervals, before and after the published samples end. Panel (a): managed factor, net of costs. Panel (b): real-time combination, net of costs.}
-\label{fig:gains}
-\end{figure}
-
-Table~\ref{tab:post} and Figure~\ref{fig:gains} split the sample at January 2017. Before the split, managed momentum's gain is large (\MomPreOrig{} to \MomPreNet{}; $p=\MomPrePUnadj{}$ unadjusted, \MomPrePHolm{} after adjusting for six factors in this shorter window). After it, the canonical rule gains nothing (\MomPostCanon{} against the original's \MomPostOrig{}), while the daily-data rule keeps part of the gain (\MomPostNet{}; $p=\MomPostP{}$ unadjusted, 95\% interval \MomPostLo{} to \MomPostHi{}; against the canonical rule, $p=\MomPostPVsCanon{}$). A test that the gain changed between the two periods gives $p=\MomChangeP{}$: the decade is consistent both with no gain and with the earlier one.
-
-Value's post-2016 net alpha of \HmlPostAlpha\% ($t=\HmlPostAlphaT{}$) is not a finding: the Sharpe test does not reject ($p=\HmlPostP{}$) and with a January 2016 split the alpha is \HmlSplitSixteenAlpha\% ($t=\HmlSplitSixteenT{}$).
-
-\subsection{Why: a return channel and a risk channel}
+Managed momentum raises the Sharpe ratio from \MomOrig{} to \MomNet{} after costs ($p=\MomP{}$, Holm-adjusted \MomPHolm{}; Table~\ref{tab:full}), and its largest loss at equal volatility falls from \MomDDOrig{} to \MomDDNet{} percentage points. No other factor improves; the market's Sharpe ratio falls from \MktOrig{} to \MktNet{}. No real-time combination beats its original factor after costs. Momentum's gain is smaller after the published samples end: from \MomPreOrig{} to \MomPreNet{} before 2017 and from \MomPostOrig{} to \MomPostNet{} after ($p=\MomPostP{}$ over \PostMonths{} months), a difference between the periods that is not significant ($p=\MomChangeP{}$). Across variance signals, block lengths, caps, scaling rules and start dates, managed momentum's full-sample Sharpe ratio ranges from \MomRobMinSR{} to \MomRobMaxSR{} and always differs from the original ($p\le\MomRobMaxP{}$).
 
 \begin{table}[ht]
 \centering\small\setlength{\tabcolsep}{5pt}
@@ -167,119 +97,101 @@ Factor & Period & $\bar w$ & $\bar f$ & $\bar w\,\bar f$ & $\widehat{\operatorna
 \rows{generated/table_decomp.tex}
 \bottomrule
 \end{tabular}
-\caption{Exact decompositions of the daily-data rule, equations (\ref{eq:decomp}) and (\ref{eq:channels}). $\bar w$ is the average exposure. $\bar f$, $\bar w\,\bar f$, the covariance, the cost and $\overline{f^\sigma}$ are annualized, in percent, and $\bar w\,\bar f+\widehat{\operatorname{cov}}-\text{cost}=\overline{f^\sigma}$ up to rounding. $M$ and $R$ are the return and risk channels; their product is the ratio of the managed to the original Sharpe ratio. $M$ is not reported when $\bar f\le0$.}
+\caption{Exact decomposition of the daily-data rule, equation (\ref{eq:channels}). $\bar f$, $\bar w\,\bar f$, the covariance, the cost and $\overline{f^\sigma}$ are annualized, in percent. $M$ and $R$ are the return and risk channels; their product is the ratio of managed to original Sharpe ratios. $M$ is not reported when $\bar f\le0$.}
 \label{tab:decomp}
 \end{table}
 
-Table~\ref{tab:decomp} applies equations (\ref{eq:decomp}) and (\ref{eq:channels}). Before 2017, both channels lift momentum: the covariance adds \MomPreCovPct{} percentage points a year against \MomPreCostPct{} of costs ($M=\MomPreM{}$), and cutting exposure in volatile months removes about a third of the risk of a constant exposure ($R=\MomPreR{}$). After 2016, momentum's own return fell from \MomPreMeanF\% to \MomPostMeanF\% a year and its variance stayed high relative to its history, so exposure was low (average \MomPostAvgW{}, below 0.2 in \MomPostLowMonths{} of \PostMonths{} months). The daily-data rule still earned a covariance of \MomPostCovPct{} points at \MomPostCostPct{} of costs ($M=\MomPostM{}$, $R=\MomPostR{}$). The canonical rule earned \MomPostCovCanon{} points and spent \MomPostCostCanon{} on trading. Value's covariance is negative in both periods (\HmlPreCovPct{} and \HmlPostCovPct{} points), so the rule works against it. For profitability before 2017, the return channel ($M=\RmwPreM{}$) gives back part of what the risk channel adds ($R=\RmwPreR{}$), leaving a gain too small to be statistically significant.
+Table~\ref{tab:decomp} shows the reason. Momentum's covariance between exposure and return is positive in both periods, so its return channel exceeds one ($M=\MomPreM{}$ before 2017). Every other factor's covariance is negative: the rule scales them down in the months they pay. For the market, $M$ is \MktPreM{} before 2017 and \MktPostM{} after. The next two sections explain both signs.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{images/fig_terciles.png}
-\caption{Annualized mean factor return by tercile of real-time managed exposure (daily-data rule). Turbulent months are the third with the lowest exposure, that is, the highest prior variance.}
-\label{fig:terc}
-\end{figure}
+\section{Momentum's formation beta}
+\label{sec:mech}
 
-Figure~\ref{fig:terc} shows the covariance directly. Momentum earns most in calm months: after 2016, \MomPostCalm\% a year in the calm tercile against \MomPostTurbulent\% in the turbulent one. Value is the mirror image, earning \HmlPostTurbulent\% in turbulent months and \HmlPostCalm\% in calm ones. Figure~\ref{fig:exposure} shows the consequence for value: its eight best months since 2017, \HmlTopInTwentyOneTwo{} of them in the 2021 to 2022 rebound, came while the managed strategy held between \HmlTopMin{} and \HmlTopMax{} times the factor.
+\begin{proposition}\label{prop:beta}
+Let stock $i$'s market beta be $b_i=\bar b+\sigma_b\varepsilon_i$ with $\varepsilon_i\sim\mathcal N(0,1)$, and its formation-window log return $r_i=b_iR_F+u_i$, where $u_i$ is independent of $b_i$ and has any distribution, and $R_F$ is the coefficient on beta, to first order $\sum_t R_{M,t}(1-R_{M,t}-r_{f,t})$ over the window for market excess returns $R_{M,t}$. Winners are the stocks with $r_i\ge c_{hi}$ (a share $q_{hi}$), losers those with $r_i\le c_{lo}$ (a share $q_{lo}$). If betas persist into the holding month, the equal-weighted winners-minus-losers beta is
+\begin{equation}
+\beta_{WML}=\sigma_b^2\,R_F\left[\frac{\phi(c_{hi})}{q_{hi}}+\frac{\phi(c_{lo})}{q_{lo}}\right],
+\label{eq:beta}
+\end{equation}
+where $\phi$ is the cross-sectional density of formation returns.
+\end{proposition}
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{images/fig_exposure.png}
-\caption{Monthly factor return (bars) and real-time managed exposure (line, daily-data rule, cap 1.5), January 2017 to \RTend{}.}
-\label{fig:exposure}
-\end{figure}
+\begin{proof}
+Write $r_i=\theta_i+e_i$ with $e_i=(b_i-\bar b)R_F\sim\mathcal N(0,\sigma_b^2R_F^2)$ independent of $\theta_i=\bar bR_F+u_i$. Tweedie's formula \citep{efron2011} gives $\mathbb E[e_i\mid r_i]=-\sigma_b^2R_F^2\,(\log\phi)'(r_i)$, so $\mathbb E[b_i\mid r_i]=\bar b-\sigma_b^2R_F\,(\log\phi)'(r_i)$. Averaging over winners, $\mathbb E[-(\log\phi)'(r)\mid r\ge c_{hi}]=q_{hi}^{-1}\int_{c_{hi}}^{\infty}-\phi'(r)\,dr=\phi(c_{hi})/q_{hi}$; over losers the same integral gives $-\phi(c_{lo})/q_{lo}$. Subtract.
+\end{proof}
 
-\subsection{Robustness}
+The sign comes from the market's own formation return: after a bull market momentum is long the market, after a bear market short it. With normal $u_i$ and equal tail shares, (\ref{eq:beta}) is linear in $R_F$ near zero, the relation \citet{grundy2001} estimate by regression, and saturates after extreme markets. Its size depends on how many stocks sit near the breakpoints, so heavier-tailed idiosyncratic returns, which put more stocks near the 30th and 70th percentiles at the same variance, raise it.
 
-\begin{table}[ht]
-\centering\small\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lcccccc}
-\toprule
- & \multicolumn{3}{c}{Momentum, full sample} & \multicolumn{3}{c}{Value, after the split} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-Specification & Original & Managed & $p$ & $\alpha$, \% & $t$ & $p$ \\
-\midrule
-\rows{generated/table_robust.tex}
-\bottomrule
-\end{tabular}
-\caption{Robustness. Momentum columns test the managed against the original factor over the full real-time sample (the last row starts in July 1978); value columns report the net spanning alpha and the Sharpe test after the split (January 2017 unless stated). $p$-values are unadjusted. Value's exposure never exceeds 1.5 after 2016, so its row does not change across caps.}
-\label{tab:robust}
-\end{table}
-
-Table~\ref{tab:robust} varies the variance signal, the bootstrap block length, the split date, the cap, the scaling rule and the start date. Managed momentum's full-sample Sharpe ratio ranges from \MomRobMinSR{} to \MomRobMaxSR{} and every test rejects equality with the original ($p\le\MomRobMaxP{}$). The burn-in needs no check: the scale constant uses every month since 1963 whatever its length, so it only sets when trading starts. Figure~\ref{fig:mom} shows momentum's path at equal volatility.
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{images/fig_momentum.png}
-\caption{Cumulative summed monthly returns of momentum, its real-time managed version and the real-time combination (daily-data rule, both net of costs), each scaled to 10\% annualized volatility for display. Scaling leaves every Sharpe ratio unchanged. The dotted line marks January 2017.}
-\label{fig:mom}
-\end{figure}
-
-\FloatBarrier
-\section{Learning rates}
-\label{sec:learning}
-
-The rule has three estimators, each with an implicit learning rate. The canonical signal weights the last month's days equally and ignores earlier ones; the scale constant $c$ and the combination weights use expanding windows, whose step size $1/t$ has fallen to about 1/640 by 2017, so they have effectively stopped learning. After the canonical rule's post-2016 results were known, and before any alternative was run, we committed a plan (\texttt{paper/PLAN\_adaptive.md} in the code repository) that fixes 24 variants: six signals (S0, prior-month realized variance; S1 to S3, exponentially weighted daily variance with half-lives of 5, 21 and 63 trading days; S4, a forecast in the spirit of \citet{corsi2009} from the last day, week and month; S5, realized variance of the last 13 weekly returns), four scale constants (B0, expanding; B1 to B3, half-lives of 3, 5 and 10 years) and two exponentially weighted combinations. Because the post-2016 results were already known, no rule uses them to pick a variant: the best variant on 1973 to 2016, evaluated once afterwards; a real-time rule holding each month the variant with the best trailing 10-year Sharpe ratio; and the superior-predictive-ability test of \citet{hansen2005} against the canonical rule, with loss differentials $r_{k,m}/\operatorname{sd}(r_k)-r_{0,m}/\operatorname{sd}(r_0)$, whose mean is the monthly Sharpe difference. The pre-committed adoption rule made the pre-2017 selection for momentum the main specification if either of the last two showed a significant improvement for momentum with the same sign after 2016.
+\paragraph{Test.} We measure both inputs in CRSP (common stocks on NYSE, AMEX and NASDAQ, monthly, to \CrspEnd{}). Our value-weighted rebuild of French's momentum correlates \RepCorr{} with his over \RepMonths{} months. For the portfolio formed at the end of month $m$, each stock's beta $\hat b_i$ is estimated over months $m-71$ to $m-12$, before the formation window starts, so no beta uses the returns being sorted on. $\sigma_b^2$ is the cross-sectional variance of $\hat b_i$ minus the mean of their squared standard errors, and $\phi$ at the NYSE breakpoints comes from the quantile-spacing estimator with the bandwidth of \citet{hallsheather1988}. Both are computed within each of French's two size groups and averaged. The test regression is
+\begin{equation}
+\mathrm{MOM}_{m+1}=a+c\,\hat\beta_{m}\,R_{M,m+1}+d\,R_{M,m+1}+\varepsilon_{m+1},
+\end{equation}
+with Newey-West standard errors (12 lags). The prediction is exact if $c=1$ and $d=0$. On simulated markets in which (\ref{eq:beta}) holds, with normal and $t_4$ idiosyncratic returns, the procedure returns $c$ of 1.04 on average and the joint test rejects at its nominal rate.
 
 \begin{table}[ht]
 \centering\small\setlength{\tabcolsep}{4pt}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{llccccccccc}
+\begin{tabular}{llcccccc}
 \toprule
- & & \multicolumn{4}{c}{2017 to 2026} & \multicolumn{3}{c}{Real-time selection, from \AdMomRuleTwoStart{}} & \multicolumn{2}{c}{Hansen test $p$} \\
-\cmidrule(lr){3-6}\cmidrule(lr){7-9}\cmidrule(lr){10-11}
-Factor & Selected on 1973 to 2016 & Original & Canonical & Selected & $p$ & Canonical & Selected & $p$ & Full & 2017 to 2026 \\
+Sample & Portfolio & $c$ (s.e.) & $d$ (s.e.) & $p$: $c=1,d=0$ & $\Delta R^2$ & Share of in-sample & Months \\
 \midrule
-\rows{generated/table_adaptive.tex}
+\rows{generated/table_mechanism.tex}
 \bottomrule
 \end{tabular}}
-\caption{Learning-rate selection. Variant codes: signal S0 to S5 and scale constant B0 to B3 (Section~\ref{sec:learning}); S0-B0 is the canonical rule and S2-B0 the daily-data rule. $p$-values in columns six and nine are Ledoit-Wolf tests against the canonical rule, unadjusted. Hansen's test asks whether any of the 23 other variants beats the canonical rule.}
-\label{tab:adaptive}
+\caption{Parameter-free test of Proposition~\ref{prop:beta}. $\Delta R^2$ is the increase in $R^2$ over a regression on $R_{M,m+1}$ alone; the share compares it with the increase from an in-sample regression that fits the slope on $R_F\,R_{M,m+1}$ \citep{grundy2001}. Equal-weighted is the theory's portfolio, French's momentum the traded factor.}
+\label{tab:mech}
 \end{table}
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=\textwidth]{images/fig_adaptive_grid.png}
-\caption{Net Sharpe ratio of each of the 24 pre-registered variants minus the canonical rule (S0-B0), by factor, before (top) and after (bottom) the published samples end. The outlined cell is the daily-data rule (S2-B0).}
-\label{fig:grid}
+\includegraphics[width=0.72\textwidth]{images/fig_formation_beta.png}
+\caption{Realized market beta of French's momentum in the month after formation, estimated within each decile of the predicted beta (\ref{eq:beta}), holding months from July \MechFirstYear{} to December 2025, with 95\% intervals. The dashed line is the exact prediction; the solid line is the fitted relation from Table~\ref{tab:mech}.}
+\label{fig:beta}
 \end{figure}
 
-For momentum the pre-2017 selection is \AdRuleOneMom{} (Sharpe ratio \AdMomPreSel{} against \AdMomPreCur{} for the canonical rule before 2017), which afterwards earns \AdMomPostSel{} against \AdMomPostCur{} ($p=\AdMomPostSelP{}$). Hansen's test finds no variant better than the canonical rule over the full sample ($p=\AdMomSpaFull{}$) but rejects after 2016 ($p=\AdMomSpaPost{}$, and between \AdMomSpaPostMin{} and \AdMomSpaPostMax{} for block lengths of 6 to 24 months). That met the adoption rule, at the margin. The real-time rule points the other way: chasing the recently best learning rate switched variant \AdMomSwitches{} times and earned \AdMomRuleTwo{} against \AdMomRuleTwoCur{} for the canonical rule over the same months ($p=\AdMomRuleTwoP{}$). The learning rate that worked best recently is not the one that works next.
+The slope matches the prediction (Table~\ref{tab:mech} and Figure~\ref{fig:beta}). With no fitted parameter, $c$ is \MechCFull{} (standard error \MechCSeFull{}) for French's momentum over \MechFirstYear{} to 2025 and \MechCPost{} (\MechCSePost{}) from 1963; for the theory's equal-weighted portfolio from 1963 it is \MechCEwPost{}. Adding the prediction raises the $R^2$ of a regression of momentum on the market by \MechRtwoFull{} percentage points, \MechShareFull\% of the rise from an in-sample regression that fits the slope. The level is not: $d$ is \MechDFull{} over the full sample and \MechDPost{} from 1963, so the joint test rejects (from 1963, $p=\MechWaldPost{}$), and in the top decile the realized beta falls short of the prediction.
 
-Figure~\ref{fig:grid} shows three further patterns. The fastest signal, a 5-day half-life, trails the canonical rule before 2017 for \AdSOneWorsePre{} of the six factors, but helps in a crash. At the end of February 2020 it had cut market exposure to \AdMktFebFast{}, against \AdMktFebCur{} for the canonical rule, and its net return over February to April was \AdMktCovidFast\% instead of \AdMktCovidCur\% (Figure~\ref{fig:stress}), although no signal held more than \AdMktAprMax{} of the market for the April rebound. Weekly realized variance over a quarter is the best momentum variant after 2016 (\AdMomPostSFive{}) but among the worst before (\AdMomPreSFive{}). With the canonical signal, a 3-year half-life for the scale constant lowers momentum's pre-2017 Sharpe ratio to \AdMomPreBOne{} but raises its post-2016 one to \AdMomPostBOne{}. An adaptive scale constant helps value most (column B1 in Figure~\ref{fig:grid}): its pre-2017 choice, \AdHmlRuleOne{}, cut value's post-2016 loss against the canonical rule (Sharpe ratio \AdHmlPostSel{} against \AdHmlPostCur{}, $p=\AdHmlPostSelP{}$; Hansen $p=\AdHmlSpaPost{}$), the clearest case for a faster learning rate. Exponentially weighted combination weights do worse than expanding ones for \AdComboWorseCount{} of the six factors. Faster learning trades stability for recent fit, and the trade rarely pays. Faster rebalancing is not tested: every French daily momentum series is re-formed daily, so daily returns of the monthly-formed factor would need CRSP.
+The level gap has a candidate explanation. Compounding lowers the formation return of volatile stocks, so if high-beta stocks are also more volatile, losers hold high-beta stocks even when $R_F=0$. Simulated markets built that way show a negative $d$, but a first-order correction for it failed validation, so we report the gap as open. Measured directly from pre-window betas, the formation beta has a slope of only \MechTOneSlope{} on the prediction (correlation \MechTOneCorr{}), consistent with betas drifting between the estimation window and the formation year.
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\textwidth]{images/fig_adaptive_stress.png}
-\caption{Real-time exposure under four variance signals (lines, expanding scale constant) and the factor's monthly return (bars) around the 2008 to 2009 and 2020 crises.}
-\label{fig:stress}
-\end{figure}
+\section{What volatility timing should time}
+\label{sec:what}
 
-\FloatBarrier
+\begin{proposition}\label{prop:weight}
+If the market premium is proportional to market variance, $\lambda_t=\kappa F^M_t$ \citep{merton1980}, a factor with conditional expected return $\alpha+\beta_t\lambda_t$ and variance $F_t$ has mean-variance weight
+\begin{equation}
+w^*_t=\frac1A\left[\frac{\alpha}{F_t}+\kappa\,\beta_t\,\frac{F^M_t}{F_t}\right].
+\end{equation}
+\end{proposition}
+
+Inverse-variance timing is optimal only for $\alpha$, the part of the premium not paid for market risk. For the market ($\alpha=0$, $\beta=1$, $F=F^M$) the optimal weight is constant: an inverse-variance rule cuts exposure in exactly the months that the premium rises. The market's return channel below one in Table~\ref{tab:decomp} is consistent with that. For momentum, Proposition~\ref{prop:beta} makes $\beta_t$ negative after market declines, so the market-related part of its expected return is most negative when market variance is high, in the months an inverse-variance rule already avoids.
+
+The data agree. Over \LOneMonths{} holding months from July 1973 to November 2025, the months after market declines ($\hat\beta<0$) are \LOneShareMonths\% of the sample and contribute \LOneShareCov\% of the covariance between momentum's managed exposure and its return. In those months momentum earns \LOneMeanFNeg\% a year against \LOneMeanFPos\% otherwise, and the rule holds \LOneMeanWNeg{} times the factor against \LOneMeanWPos{}. Volatility management does not need to forecast this: a mean forecast built from $\hat\beta_m$ alone does not beat the historical mean (out-of-sample $R^2$ of \LTwoRUnwPre\% before 2017, Clark-West $p=\LTwoCwUnwPre{}$; \citealp{clark2007}). A likely reason is that it omits the level gap, whose effect on the mean scales with market variance.
+
 \section{Conclusion}
 
-Built with only past data, capped leverage and costs, volatility management improves one of six widely used equity factors, momentum. After the published samples end, the canonical rule stopped adding value to momentum; estimating variance from every daily return with a one-month half-life keeps part of the gain at half the turnover. A decade is too short to show that this, or any learning rate, is reliably better, and choosing the learning rate by recent performance is worse than fixing it. No real-time combination beat its original factor after costs. Equation (\ref{eq:channels}) gives investors a check before adopting the rule: it pays only when the product of the return and risk channels exceeds one.
+Volatility management pays for momentum and for none of the other five factors, in real time and after costs. The reason is how momentum is built. Sorting on past returns makes its market beta a function of the market's own recent return, and Proposition~\ref{prop:beta} gives that function in closed form. With no fitted parameter it predicts how momentum's beta moves, although not its average level. After market declines the beta turns negative, and those months carry most of the covariance through which timing adds to momentum's return. If the market's premium rises with its variance, timing the market by variance gives up the premium; the market should not be volatility-timed, and in our sample it gains nothing.
 
-Two limits apply. The post-2016 window has \PostMonths{} months, enough to detect a large change but not a moderate one. We charge costs only on changes in exposure, not on the trading inside each factor portfolio, so every net figure is an upper bound.
+Two limits apply. The level gap in momentum's beta remains unexplained. We charge costs only on changes in exposure, not on the trading inside each factor portfolio, so every net figure is an upper bound.
 
 \bigskip
-\noindent\textbf{Data availability.} Factor returns are publicly available from the Kenneth R. French Data Library. Code is available from the author on request.
+\noindent\textbf{Data availability.} Factor returns are available from the Kenneth R. French Data Library; stock returns are from CRSP through WRDS and cannot be redistributed. Code and the pre-registration plans are available from the author on request.
 
 \noindent\textbf{Declaration of generative AI and AI-assisted technologies in the writing process.} During the preparation of this work the author used generative AI tools to create the simulations and code and to draft the content structure of the paper. The author reviewed and edited the content as needed and takes full responsibility for the content of the publication.
 
-\begin{thebibliography}{13}
+\begin{thebibliography}{17}
 \bibitem[Barroso and Detzel(2021)]{barroso2021} Barroso, P., Detzel, A., 2021. Do limits to arbitrage explain the benefits of volatility-managed portfolios? \textit{Journal of Financial Economics} 140(3), 744-767.
 \bibitem[Barroso and Santa-Clara(2015)]{barroso2015} Barroso, P., Santa-Clara, P., 2015. Momentum has its moments. \textit{Journal of Financial Economics} 116(1), 111-120.
 \bibitem[Carhart(1997)]{carhart1997} Carhart, M.M., 1997. On persistence in mutual fund performance. \textit{Journal of Finance} 52(1), 57-82.
 \bibitem[Cederburg et al.(2020)]{cederburg2020} Cederburg, S., O'Doherty, M.S., Wang, F., Yan, X.S., 2020. On the performance of volatility-managed portfolios. \textit{Journal of Financial Economics} 138(1), 95-117.
-\bibitem[Corsi(2009)]{corsi2009} Corsi, F., 2009. A simple approximate long-memory model of realized volatility. \textit{Journal of Financial Econometrics} 7(2), 174-196.
+\bibitem[Clark and West(2007)]{clark2007} Clark, T.E., West, K.D., 2007. Approximately normal tests for equal predictive accuracy in nested models. \textit{Journal of Econometrics} 138(1), 291-311.
 \bibitem[Daniel and Moskowitz(2016)]{daniel2016} Daniel, K., Moskowitz, T.J., 2016. Momentum crashes. \textit{Journal of Financial Economics} 122(2), 221-247.
+\bibitem[Efron(2011)]{efron2011} Efron, B., 2011. Tweedie's formula and selection bias. \textit{Journal of the American Statistical Association} 106(496), 1602-1614.
 \bibitem[Fama and French(2015)]{fama2015} Fama, E.F., French, K.R., 2015. A five-factor asset pricing model. \textit{Journal of Financial Economics} 116(1), 1-22.
-\bibitem[Hansen(2005)]{hansen2005} Hansen, P.R., 2005. A test for superior predictive ability. \textit{Journal of Business \& Economic Statistics} 23(4), 365-380.
+\bibitem[Grundy and Martin(2001)]{grundy2001} Grundy, B.D., Martin, J.S., 2001. Understanding the nature of the risks and the source of the rewards to momentum investing. \textit{Review of Financial Studies} 14(1), 29-78.
+\bibitem[Hall and Sheather(1988)]{hallsheather1988} Hall, P., Sheather, S.J., 1988. On the distribution of a studentized quantile. \textit{Journal of the Royal Statistical Society: Series B} 50(3), 381-391.
 \bibitem[Holm(1979)]{holm1979} Holm, S., 1979. A simple sequentially rejective multiple test procedure. \textit{Scandinavian Journal of Statistics} 6(2), 65-70.
 \bibitem[Ledoit and Wolf(2008)]{ledoit2008} Ledoit, O., Wolf, M., 2008. Robust performance hypothesis testing with the Sharpe ratio. \textit{Journal of Empirical Finance} 15(5), 850-859.
 \bibitem[Liu et al.(2019)]{liu2019} Liu, F., Tang, X., Zhou, G., 2019. Volatility-managed portfolio: Does it really work? \textit{Journal of Portfolio Management} 46(1), 38-51.
-\bibitem[McLean and Pontiff(2016)]{mclean2016} McLean, R.D., Pontiff, J., 2016. Does academic research destroy stock return predictability? \textit{Journal of Finance} 71(1), 5-32.
+\bibitem[Merton(1980)]{merton1980} Merton, R.C., 1980. On estimating the expected return on the market: An exploratory investigation. \textit{Journal of Financial Economics} 8(4), 323-361.
 \bibitem[Moreira and Muir(2017)]{moreira2017} Moreira, A., Muir, T., 2017. Volatility-managed portfolios. \textit{Journal of Finance} 72(4), 1611-1644.
 \end{thebibliography}
 

@@ -20,7 +20,7 @@ from scipy.stats import norm  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from realtime import (load_factors, load_monthly, monthly_panel, realtime_managed, CAP, GEN, PAPER_IMG,  # noqa: E402
-                      num)
+                      num, sharpe, POST_START, KAPPA)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MECH = os.path.join(ROOT, "output", "mechanism")
@@ -103,6 +103,13 @@ def main():
     plt.close(fig)
     out["figure_bins"] = pts.tolist()
 
+    # the market under the letter's rule, computed exactly as the letter's Tables 1 and 2
+    rm_ = realtime_managed(mkt, CAP)
+    out["market"] = {"sr_orig": sharpe(rm_["f"]), "sr_net": sharpe(rm_["net"])}
+    for per, mask in (("pre", rm_.index < POST_START), ("post", rm_.index >= POST_START)):
+        r = rm_[mask]
+        out["market"][f"M_{per}"] = float(1 + (np.cov(r["w"], r["f"], bias=True)[0, 1] - (KAPPA * r["turn"]).mean())
+                                          / (r["w"].mean() * r["f"].mean()))
     json.dump(out, open(os.path.join(MECH, "paper_numbers.json"), "w"), indent=1)
     write_tex(res, out)
     print(json.dumps(out, indent=1, default=float))
@@ -117,7 +124,10 @@ def write_tex(res, out):
     add("CrspEnd", pd.Timestamp(g["crsp_last_month"]).strftime("%B %Y"))
     rows = []
     labels = {"T2_ew": "Equal-weighted", "T2_french": "French's momentum"}
-    for s, sname in (("full", "1929 to 2025"), ("from_1963", "1963 to 2025")):
+    pan = pd.read_csv(os.path.join(MECH, "formation_beta_panel.csv"), index_col=0, parse_dates=True)
+    first_hold = (pan.dropna(subset=["beta_pred", "french_mom_next"]).index.min() + pd.offsets.MonthEnd(1)).year
+    add("MechFirstYear", str(first_hold))
+    for s, sname in (("full", f"{first_hold} to 2025"), ("from_1963", "1963 to 2025")):
         for k in ("T2_ew", "T2_french"):
             t = res[s][k]
             rows.append(f"{sname} & {labels[k]} & {num(t['c'])} ({num(t['c_se'])}) & {num(t['d'])} ({num(t['d_se'])}) & "
@@ -133,7 +143,12 @@ def write_tex(res, out):
     add("MechCEwPost", num(t["c"])); add("MechCSeEwPost", num(t["c_se"]))
     t1 = res["full"]["T1"]
     add("MechTOneSlope", num(t1["slope"])); add("MechTOneCorr", num(t1["corr"]))
+    mk = out["market"]
+    add("MktOrig", num(mk["sr_orig"])); add("MktNet", num(mk["sr_net"]))
+    add("MktPreM", num(mk["M_pre"])); add("MktPostM", num(mk["M_post"]))
+    add("MechDAbsFull", num(abs(res["full"]["T2_french"]["d"])))
     l1 = out["L1"]
+    add("LOneMonths", f"{l1['months']}")
     add("LOneShareMonths", f"{100 * l1['share_months_neg']:.0f}"); add("LOneShareCov", f"{100 * l1['share_cov_neg']:.0f}")
     add("LOneMeanFNeg", num(l1["mean_f_neg_ann"], 1)); add("LOneMeanFPos", num(l1["mean_f_pos_ann"], 1))
     add("LOneMeanWNeg", num(l1["mean_w_neg"])); add("LOneMeanWPos", num(l1["mean_w_pos"]))
