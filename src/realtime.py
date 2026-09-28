@@ -256,16 +256,20 @@ def main() -> None:
     print("\nAnnualized factor return by real-time exposure tercile (cap 1.5x):\n")
     print(terc.to_string())
 
+    # display only: scale each series to 10% annualized volatility so the lines compare
+    # risk-adjusted performance (ex post scaling leaves every Sharpe ratio unchanged)
     s = series["Mom"]
+    def at10(x):
+        x = np.asarray(x, dtype=float)
+        return x * 0.10 / (np.nanstd(x, ddof=1) * np.sqrt(12))
     fig, ax = plt.subplots(figsize=(10, 4.5))
-    ax.plot(s.index, np.nancumsum(s["f"]), color="#8a8a8e", lw=1.4, label="Momentum (original)")
-    ax.plot(s.index, np.nancumsum(s["net"]), color="#1f4e79", lw=1.6, label="Real-time managed, 1.5x cap, net of costs")
-    ax.plot(s.index, np.nancumsum(s["combo"]), color="#c0392b", lw=1.2, ls="--", label="Real-time combination")
+    ax.plot(s.index, np.nancumsum(at10(s["f"])), color="#8a8a8e", lw=1.4, label="Momentum (original)")
+    ax.plot(s.index, np.nancumsum(at10(s["net"])), color="#1f4e79", lw=1.6, label="Real-time managed, 1.5x cap, net of costs")
+    ax.plot(s.index, np.nancumsum(at10(s["combo"])), color="#c0392b", lw=1.2, ls="--", label="Real-time combination")
     ax.axvline(pd.Timestamp(POST_START), color="#555", lw=0.8, ls=":")
-    ax.text(pd.Timestamp(POST_START), ax.get_ylim()[1] * 0.95, " published samples end", fontsize=8, va="top")
-    ax.set_ylabel("cumulative sum of monthly returns")
+    ax.set_ylabel("cumulative return, each series scaled to 10% vol")
     ax.set_title("Momentum: real-time volatility management")
-    ax.legend(frameon=False, fontsize=9)
+    ax.legend(frameon=False, fontsize=9, loc="upper left")
     ax.grid(alpha=0.3)
     fig.tight_layout()
     fig.savefig(os.path.join(FIG, "realtime_mom.png"), dpi=200)
