@@ -52,15 +52,62 @@ def inspect():
     db.close()
 
 
+FF3_M_URL = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_Factors_CSV.zip"
+MOM_M_URL = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Momentum_Factor_CSV.zip"
+
+
+def ff_long() -> pd.DataFrame:
+    """French monthly Mkt-RF and RF from 1926 and Mom from 1927 (the letter's loader starts in 1963)."""
+    cache = os.path.join(ROOT, "data", "ff3_mom_monthly_long.csv")
+    if os.path.exists(cache):
+        return pd.read_csv(cache, index_col=0, parse_dates=True)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from realtime import _fetch_monthly
+    ff3 = _fetch_monthly(FF3_M_URL)[["Mkt-RF", "RF"]]
+    mom = _fetch_monthly(MOM_M_URL)
+    mom.columns = ["Mom"]
+    df = ff3.join(mom, how="left")
+    df.to_csv(cache)
+    return df
+
+
+PULL_SQL = """
+select permno, mthcaldt, mthret, mthcap, mthprc, shrout, primaryexch, conditionaltype, tradingstatusflg, mthdelflg
+from crsp.msf_v2
+where sharetype = 'NS' and securitytype = 'EQTY' and securitysubtype = 'COM' and usincflg = 'Y'
+  and issuertype in ('ACOR', 'CORP') and primaryexch in ('N', 'A', 'Q')
+"""
+
+
+def pull():
+    """Common stocks (the CIZ equivalent of share codes 10 and 11) on NYSE, AMEX and NASDAQ; cached locally."""
+    os.makedirs(CACHE, exist_ok=True)
+    db = connect()
+    df = db.raw_sql(PULL_SQL, date_cols=["mthcaldt"])
+    db.close()
+    df.to_parquet(os.path.join(CACHE, "msf_v2.parquet"))
+    print(len(df), "rows,", df["permno"].nunique(), "permnos,", df["mthcaldt"].min().date(), "to", df["mthcaldt"].max().date())
+    for c in ("primaryexch", "conditionaltype", "tradingstatusflg", "mthdelflg"):
+        print(c, df[c].value_counts(dropna=False).head(8).to_dict())
+    print("missing mthret share:", round(df["mthret"].isna().mean(), 4), "| missing mthcap share:", round(df["mthcap"].isna().mean(), 4))
+
+
 # ---------------------------------------------------------------- panel construction (pure; tested on simulated data)
 
 def month_end(s: pd.Series) -> pd.Series:
     return pd.to_datetime(s) + pd.offsets.MonthEnd(0)
 
 
-def rolling_beta(R: np.ndarray, x: np.ndarray, win: int = BETA_WIN, min_obs: int = BETA_MIN):
+def rolling_beta(R: np.ndarray, x: np.ndarray, win: int = BETA_WIN, min_obs: int = BETA_MIN, block: int = 3000):
     """OLS beta and its squared standard error of each column of R (T x N stock excess returns, NaN = missing)
     on x (T market excess returns), over the window of `win` months ending at each row (inclusive)."""
+    if R.shape[1] > block:
+        parts = [_rolling_beta(R[:, i:i + block], x, win, min_obs) for i in range(0, R.shape[1], block)]
+        return np.hstack([p[0] for p in parts]), np.hstack([p[1] for p in parts])
+    return _rolling_beta(R, x, win, min_obs)
+
+
+def _rolling_beta(R, x, win, min_obs):
     T, N = R.shape
     m = np.isfinite(R)
     Y = np.where(m, R, 0.0)
@@ -199,5 +246,46 @@ def outcome(t: dict) -> str:
     return "mechanism fails as a monthly prediction"
 
 
+def load_wide():
+    d = pd.read_parquet(os.path.join(CACHE, "msf_v2.parquet"))
+    d["date"] = month_end(d["mthcaldt"])
+    me = d["mthcap"].where(d["mthcap"] > 0, (d["mthprc"].abs() * d["shrout"]))
+    d = d.assign(me=me, nyse=(d["primaryexch"] == "N").astype(float))
+    d = d.drop_duplicates(["permno", "date"], keep="last")
+    ret = d.pivot(index="date", columns="permno", values="mthret").astype("float64")
+    mew = d.pivot(index="date", columns="permno", values="me").reindex_like(ret)
+    ny = d.pivot(index="date", columns="permno", values="nyse").reindex_like(ret).fillna(0.0)
+    full = pd.date_range(ret.index.min(), ret.index.max(), freq="ME")
+    return ret.reindex(full), mew.reindex(full), ny.reindex(full).fillna(0.0)
+
+
+def run():
+    os.makedirs(OUT, exist_ok=True)
+    ret, me, ny, = load_wide()
+    ff = ff_long()
+    mkt = ff[["Mkt-RF", "RF"]].reindex(ret.index)
+    keep = mkt.notna().all(axis=1)
+    ret, me, ny, mkt = ret[keep], me[keep], ny[keep], mkt[keep]
+    panel = build_panel(ret, me, ny, mkt)
+    panel["french_mom_next"] = ff["Mom"].shift(-1).reindex(panel.index)
+    g = panel[["mom_vw", "french_mom_next"]].dropna()
+    gate = {"corr_vw_vs_french": float(g.corr().iloc[0, 1]), "months": len(g),
+            "first": str(g.index.min().date()), "last": str(g.index.max().date()),
+            "crsp_last_month": str(ret.index.max().date())}
+    res = {"replication_gate": gate, "gate_passed": gate["corr_vw_vs_french"] >= 0.95}
+    print("replication gate:", json.dumps(gate), "PASSED" if res["gate_passed"] else "FAILED: no test is run")
+    if res["gate_passed"]:
+        post63 = panel[panel.index >= pd.Timestamp("1963-06-30")]
+        for name, pn in (("full", panel), ("from_1963", post63)):
+            res[name] = {"T1": t1(pn), "T2_ew": t2(pn, "mom_ew"), "T2_vw": t2(pn, "mom_vw"),
+                         "T2_french": t2(pn.assign(fr=pn["french_mom_next"]), "fr")}
+            for k in ("T2_ew", "T2_vw", "T2_french"):
+                res[name][k]["outcome"] = outcome(res[name][k])
+        print(json.dumps({k: v for k, v in res.items() if k != "replication_gate"}, indent=1, default=float))
+    cols = ["RF", "R_M_next", "mom_vw", "mom_ew", "french_mom_next", "beta_form", "beta_pred", "sigma_b2_S", "sigma_b2_B", "n_stocks"]
+    panel[cols].to_csv(os.path.join(OUT, "formation_beta_panel.csv"))      # portfolio-level series only
+    json.dump(res, open(os.path.join(OUT, "results.json"), "w"), indent=1, default=float)
+
+
 if __name__ == "__main__":
-    {"inspect": inspect}.get(sys.argv[1] if len(sys.argv) > 1 else "", lambda: print(__doc__))()
+    {"inspect": inspect, "pull": pull, "run": run}.get(sys.argv[1] if len(sys.argv) > 1 else "", lambda: print(__doc__))()
