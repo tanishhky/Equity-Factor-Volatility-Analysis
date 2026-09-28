@@ -1,0 +1,13 @@
+factor,period,p,best
+Mkt-RF,full,0.4659,S4-B1
+Mkt-RF,post,0.151,S4-B1
+SMB,full,0.4091,S5-B1
+SMB,post,0.3015,S5-B1
+HML,full,0.1474,S4-B1
+HML,post,0.0078,S5-B1
+RMW,full,0.5609,S3-B0
+RMW,post,0.8222,S4-B0
+CMA,full,0.0824,S3-B0
+CMA,post,0.0882,S3-B1
+Mom,full,0.5037,S2-B0
+Mom,post,0.0448,S5-B0

@@ -69,6 +69,8 @@ N_BOOT = 4999
 SEED = 20260928
 POST_START = pd.Timestamp("2017-01-01")   # Moreira-Muir data end 2015, Cederburg et al. Dec 2016
 ALT_SPLIT = pd.Timestamp("2016-01-01")
+SIGNAL_HALFLIFE = 21     # trading days; pre-registered variant S2 (paper/PLAN_adaptive.md), adopted
+MAIN_SIGNAL = "sig"      # adaptive EWMA signal; "rv" = canonical prior-month realized variance
 NAMES = {"Mkt-RF": "Market", "SMB": "Size (SMB)", "HML": "Value (HML)",
          "RMW": "Profitability (RMW)", "CMA": "Investment (CMA)", "Mom": "Momentum"}
 
@@ -109,20 +111,38 @@ def load_monthly() -> pd.DataFrame:
     return df
 
 
+def ewma_signal(daily: pd.Series, halflife: float = SIGNAL_HALFLIFE) -> pd.Series:
+    """Exponentially weighted daily variance, sampled on the last trading day of each month, scaled to a month.
+
+    sigma2_d = lam * sigma2_{d-1} + (1 - lam) * r_d^2 with lam = 2^(-1/halflife): every daily
+    observation is used, with a learning rate set by the half-life (pre-registered choice S2).
+    """
+    r2 = daily.dropna() ** 2
+    ew = r2.ewm(halflife=halflife, adjust=False).mean()
+    s = ew.groupby(ew.index.to_period("M")).last() * 21
+    s.index = s.index.to_timestamp("M")
+    return s
+
+
 def monthly_panel(daily: pd.Series, monthly: pd.Series) -> pd.DataFrame:
-    """Monthly return from the monthly file; realized variance about the month's mean."""
+    """Monthly return from the monthly file; two variance signals known at each month end:
+    rv  (canonical) realized variance of the month about its mean (Moreira and Muir)
+    sig (adaptive)  exponentially weighted daily variance with a 21-day half-life"""
     g = daily.groupby(daily.index.to_period("M"))
     rv = g.apply(lambda x: float(np.sum((x.values - x.values.mean()) ** 2)))
     rv.index = rv.index.to_timestamp("M")
-    return pd.DataFrame({"ret": monthly, "rv": rv}).dropna()
+    return pd.DataFrame({"ret": monthly, "rv": rv, "sig": ewma_signal(daily)}).dropna()
 
 
 # ---------------------------------------------------------------- construction
 
-def realtime_managed(m: pd.DataFrame, cap: float | None, power: float = 1.0, burn_in: int = BURN_IN) -> pd.DataFrame:
-    """Exposure w_m from data through m-1; power 1 = inverse variance, 0.5 = inverse volatility."""
+def realtime_managed(m: pd.DataFrame, cap: float | None, power: float = 1.0, burn_in: int = BURN_IN,
+                     signal: str = MAIN_SIGNAL) -> pd.DataFrame:
+    """Exposure w_m from data through m-1; power 1 = inverse variance, 0.5 = inverse volatility.
+
+    signal "sig" is the adaptive EWMA signal (main specification); "rv" is the canonical rule."""
     f = m["ret"].values
-    sig = m["rv"].shift(1).values ** power
+    sig = m[signal].shift(1).values ** power
     n = len(f)
     w = np.full(n, np.nan)
     for t in range(burn_in - 1, n):            # one extra month so the first trade has a prior weight
@@ -293,7 +313,7 @@ def main() -> None:
     print(f"Monthly {monthly.index.min():%Y-%m} to {monthly.index.max():%Y-%m}; "
           f"real-time positions {first:%Y-%m} to {last:%Y-%m}")
 
-    base, rows, sub, terc, tests = {}, [], [], [], {}
+    base, base_canon, rows, sub, terc, tests = {}, {}, [], [], [], {}
     for fac in FACTORS:
         rt = realtime_managed(panels[fac], CAP)
         rt["combo"], rt["e"] = realtime_combination(rt, CAP)
@@ -301,7 +321,11 @@ def main() -> None:
         f, net, cb = rt["f"].values, rt["net"].values, rt["combo"].values
         tm, tc = lw_test(net, f, rng), lw_test(cb, f, rng)
         a, t = spanning(net, f)
+        can = realtime_managed(panels[fac], CAP, signal="rv")
+        base_canon[fac] = can
+        tcan = lw_test(net, can["net"].values)
         rows.append({"factor": fac, "months": len(rt), "sr_orig": sharpe(f), "sr_net": sharpe(net),
+                     "sr_canon": sharpe(can["net"]), "p_vs_canon": tcan["p"], "turn_canon": can["turn"].mean(),
                      "diff": tm["diff"], "lo": tm["lo"], "hi": tm["hi"], "p": tm["p"],
                      "sr_orig_cw": sharpe(np.where(np.isnan(cb), np.nan, f)), "sr_combo": sharpe(cb),
                      "diff_c": tc["diff"], "p_c": tc["p"], "alpha": a, "alpha_t": t,
@@ -315,7 +339,12 @@ def main() -> None:
             tm_s, tc_s = lw_test(r["net"].values, r["f"].values, rng), lw_test(r["combo"].values, r["f"].values, rng)
             tests[(fac, per)] = tm_s
             a_s, t_s = spanning(r["net"].values, r["f"].values)
+            rc = base_canon[fac][mask]
+            tcs = lw_test(r["net"].values, rc["net"].values)
             sub.append({"factor": fac, "period": per, "months": int(mask.sum()), "sr_orig": sharpe(r["f"]),
+                        "sr_canon": sharpe(rc["net"]), "p_vs_canon": tcs["p"],
+                        "cov_canon": float(np.cov(rc["w"], rc["f"], bias=True)[0, 1] * 12),
+                        "cost_canon": float((KAPPA * rc["turn"]).mean() * 12),
                         "sr_net": sharpe(r["net"]), "diff": tm_s["diff"], "lo": tm_s["lo"], "hi": tm_s["hi"],
                         "p": tm_s["p"], "sr_combo": sharpe(r["combo"]), "diff_c": tc_s["diff"],
                         "lo_c": tc_s["lo"], "hi_c": tc_s["hi"], "p_c": tc_s["p"], "alpha": a_s, "alpha_t": t_s,
@@ -358,6 +387,7 @@ def main() -> None:
                     "hml_alpha": av, "hml_t": avt, "hml_p": tv["p"]})
 
     rob_row("Baseline", base["Mom"], base["HML"])
+    rob_row("Canonical signal (prior-month RV)", base_canon["Mom"], base_canon["HML"])
     rob_row("6-month bootstrap blocks", base["Mom"], base["HML"], block=6)
     rob_row("24-month bootstrap blocks", base["Mom"], base["HML"], block=24)
     rob_row("Split at January 2016", base["Mom"], base["HML"], split=ALT_SPLIT)
@@ -407,7 +437,7 @@ def write_tables(summary, subs, rob) -> None:
     for k in FACTORS:
         r = summary.loc[k]
         b, bc = _b(r.p_holm < 0.05), _b(r.p_c_holm < 0.05)
-        L.append(f"{NAMES[k]} & {num(r.sr_orig)} & {b(num(r.sr_net))} & {b(pfmt(r.p_holm))} & "
+        L.append(f"{NAMES[k]} & {num(r.sr_orig)} & {num(r.sr_canon)} & {b(num(r.sr_net))} & {b(pfmt(r.p_holm))} & "
                  f"{num(r.sr_orig_cw)} & {bc(num(r.sr_combo))} & {bc(pfmt(r.p_c_holm))} & "
                  f"{num(r.dd_orig, 0)} & {num(r.dd_net, 0)} \\\\")
     open(os.path.join(GEN, "table_full.tex"), "w").write("\n".join(L) + "\n")
@@ -418,7 +448,8 @@ def write_tables(summary, subs, rob) -> None:
         for per in ("pre", "post"):
             r = subs.loc[(k, per)]
             b = _b(r.p_holm < 0.05)
-            cells += [num(r.sr_orig), b(num(r.sr_net)), b(pfmt(r.p_holm)), f"{num(r.alpha * 100, 1)} ({num(r.alpha_t)})"]
+            cells += [num(r.sr_orig), num(r.sr_canon), b(num(r.sr_net)), b(pfmt(r.p_holm)),
+                      f"{num(r.alpha * 100, 1)} ({num(r.alpha_t)})"]
         L.append(f"{NAMES[k]} & " + " & ".join(cells) + " \\\\")
     open(os.path.join(GEN, "table_periods.tex"), "w").write("\n".join(L) + "\n")
 
@@ -457,6 +488,10 @@ def write_macros(summary, subs, terc, rob, base, first, last, combo_var) -> None
     m += macro("MomDDOrig", num(-mo.dd_orig, 0)) + macro("MomDDNet", num(-mo.dd_net, 0))
     m += macro("MomBreakeven", f"{mo.breakeven:.0f}") + macro("MomBreakevenX", f"{mo.breakeven / (KAPPA * 1e4):.0f}")
     m += macro("MomAvgW", num(mo.avg_w)) + macro("MomShareCap", f"{mo.share_cap * 100:.0f}")
+    m += macro("MomCanon", num(mo.sr_canon)) + macro("MomPVsCanon", pfmt(mo.p_vs_canon))
+    m += macro("MomTurn", num(mo.avg_turn)) + macro("MomTurnCanon", num(mo.turn_canon))
+    ratios = S["avg_turn"] / S["turn_canon"]
+    m += macro("TurnRatioMin", f"{ratios.min() * 100:.0f}") + macro("TurnRatioMax", f"{ratios.max() * 100:.0f}")
     rm = S.loc["RMW"]
     m += macro("RmwAlpha", num(rm.alpha * 100, 1)) + macro("RmwAlphaT", num(rm.alpha_t, 1))
     m += macro("RmwOrig", num(rm.sr_orig)) + macro("RmwNet", num(rm.sr_net)) + macro("RmwP", pfmt(rm.p))
@@ -464,6 +499,9 @@ def write_macros(summary, subs, terc, rob, base, first, last, combo_var) -> None
     pre, post = P.loc[("Mom", "pre")], P.loc[("Mom", "post")]
     m += macro("MomPreOrig", num(pre.sr_orig)) + macro("MomPreNet", num(pre.sr_net))
     m += macro("MomPostOrig", num(post.sr_orig)) + macro("MomPostNet", num(post.sr_net))
+    m += macro("MomPostCanon", num(post.sr_canon)) + macro("MomPreCanon", num(pre.sr_canon))
+    m += macro("MomPostPVsCanon", pfmt(post.p_vs_canon))
+    m += macro("MomPostCovCanon", num(post.cov_canon * 100, 1)) + macro("MomPostCostCanon", num(post.cost_canon * 100, 1))
     m += macro("MomPostP", pfmt(post.p)) + macro("MomPostLo", num(post.lo)) + macro("MomPostHi", num(post.hi))
     m += macro("MomPreGain", num(pre["diff"])) + macro("MomPostGain", num(post["diff"]))
     m += macro("MomChangeP", pfmt(post.p_change))
@@ -540,8 +578,8 @@ def make_design_figure(base) -> None:
     bx.set_ylim(0, 3)
     bx.axis("off")
     bx.set_title("(b) Information used for the position held in month m", fontsize=10, loc="left")
-    boxes = [(0.2, "Months $1,\\dots,m-1$\nmonthly returns $f$, daily returns $r_d$\nexpanding window", grey),
-             (3.55, "End of month $m-1$\n$\\mathrm{RV}_{m-1}$ observed\n$c_{m-1}$, $w_m$, $e_m$ set", blue),
+    boxes = [(0.2, "Up to the end of month $m-1$\ndaily $r_d$ for $S$, monthly $f$\nexpanding window for $c$", grey),
+             (3.55, "End of month $m-1$\nvariance signal $S_{m-1}$ observed\n$c_{m-1}$, $w_m$, $e_m$ set", blue),
              (6.9, "Month $m$\nearn $w_m f_m$\npay $\\kappa\\,|w_m-w_{m-1}|$", red)]
     for x, txt, col in boxes:
         bx.add_patch(plt.Rectangle((x, 0.35), 2.9, 2.3, fill=False, ec=col, lw=1.4))
