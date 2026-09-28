@@ -1,0 +1,40 @@
+# Pre-registration: a parameter-free test of momentum's formation beta on CRSP
+
+Committed 2026-09-28, before any CRSP data was downloaded to this machine. The theory is Proposition 6 of the companion project (tanishhky/filtered-risk-timing, docs/THEORY.md, Section 7.2). Its sign and shape were confirmed on French's factors (correlation 0.76 with a theory-free filtered beta), but only after fitting its scale, which came out 2.4 times the prior. This test removes the fit: every input is measured in the cross-section of stocks, before the returns it predicts.
+
+## The prediction
+For stocks with market betas b_i (cross-sectional variance sigma_b^2), formation-period log returns r_i = b_i R_F + u_i with u_i independent of b_i, and a winners-minus-losers portfolio of the stocks above c_hi and below c_lo:
+beta_WML = sigma_b^2 R_F [f_r(c_hi) / q_hi + f_r(c_lo) / q_lo],
+where f_r is the cross-sectional density of formation returns and q_hi, q_lo the shares of stocks beyond each breakpoint. (With equal tail shares q this is Proposition 6; the general form follows from the same Tweedie argument because each tail's term is f_r(c) / q_tail.)
+
+## Data (CRSP monthly via WRDS; licensed, stored locally under data/, never committed)
+- Common stocks (share codes 10 and 11 or the CIZ equivalent) on NYSE, AMEX and NASDAQ; returns include delisting returns; a missing delisting return for a performance-related delisting (codes 500 and 520 to 584) is set to -30% (Shumway, 1997).
+- Market excess return and risk-free rate: French's monthly Mkt-RF and RF (as in the letter).
+- The CRSP release used (last available month) is recorded in the output.
+
+## Construction, for a portfolio formed at the end of month m and held in month m+1
+- Formation window: months m-11 to m-1 (French's "2 to 12"); r_i is the sum of log(1 + ret) over it, requiring all 11 returns. R_F is the same sum for the market (Mkt-RF + RF).
+- Size: market equity at the end of month m; the size breakpoint is the NYSE median. Prior-return breakpoints: NYSE 30th and 70th percentiles.
+- **Replication gate.** The value-weighted 2 x 3 factor, Mom = (SH + BH)/2 - (SL + BL)/2, must correlate at least 0.95 with French's monthly Mom over the overlapping months. If it does not, no test is run until the construction is fixed.
+- The theory's object is the **equal-weighted** version of the same 2 x 3 portfolios (primary). French's value-weighted Mom (the letter's traded factor) is secondary, with the prediction applied as an approximation.
+- Stock betas b_hat_i: OLS of monthly excess returns on Mkt-RF over months m-71 to m-12 (the 60 months that end before the formation window starts; at least 36 valid), so beta estimation never uses the returns being sorted on.
+- sigma_b^2 in each size group: cross-sectional variance of b_hat minus the cross-sectional mean of its squared standard errors (an errors-in-variables correction), floored at zero.
+- f_r(c): Gaussian kernel density (Scott's bandwidth) of r_i within each size group, evaluated at that month's NYSE breakpoints; q_hi and q_lo are the group's actual shares beyond them.
+- Predicted beta: the average of the two size groups' predictions.
+
+## Tests
+- **T1 (the identity on real cross-sections).** The portfolio's formation beta measured directly, the equal-weighted mean b_hat of winners minus losers averaged over size groups, regressed on the predicted beta across months. The prediction holds if the slope is near 1; it measures how much the formula's assumptions (normal betas, independence of betas and idiosyncratic returns) cost.
+- **T2 (the economic test, primary).** WML_{m+1} = a + c * beta_pred_m * R_M,m+1 + d * R_M,m+1 + e, Newey-West (12 lags). The size prediction holds with zero fitted parameters if c = 1 and d = 0 (joint Wald test at 5%); the sign and shape hold if c > 0 (one-sided, 5%). Reported with the incremental R^2 over a regression on R_M alone, and against an in-sample Grundy-Martin benchmark (WML on R_M and R_F * R_M with a fitted slope), as the share of that benchmark's explanatory power the parameter-free prediction attains.
+- Samples: all holding months with a full beta window (from the early 1930s to the last CRSP month) as primary; July 1963 onward (the letter's sample) as secondary.
+
+## Outcomes, fixed now
+- c's 95% interval contains 1 and the Wald test does not reject: **magnitude confirmed**; the paper's headline is a parameter-free prediction of momentum's beta.
+- c > 0 significantly but the Wald test rejects: **sign and shape confirmed, magnitude off by the factor c**; the paper reports c and the formula as a shape result.
+- c not significantly positive: **the mechanism fails as a monthly prediction**; Proposition 6 leaves the headline, and the paper rests on the letter's evidence, the exposure rule (the market should not be volatility-timed) and the weighted-versus-unweighted reconciliation.
+
+## Merged paper (structure fixed now; results fill it)
+1. Puzzle: in real time, volatility management helps momentum and hurts value and the market (letter, M x R channels).
+2. Mechanism: momentum's formation beta (Proposition 6) and this CRSP test.
+3. Implication: an exposure rule that says what volatility timing should time; the market should not be timed (registered before any result, confirmed).
+4. Reconciliation: crash months are predictable (unweighted out-of-sample R^2 5.5% before 2017), but volatility management already captures most of that value (utility-weighted 0.66%).
+5. Robustness: better variance forecasts (two-speed filter, adaptive rates) do not change the Sharpe ratio.
