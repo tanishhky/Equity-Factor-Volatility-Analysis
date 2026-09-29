@@ -110,6 +110,36 @@ def main():
         r = rm_[mask]
         out["market"][f"M_{per}"] = float(1 + (np.cov(r["w"], r["f"], bias=True)[0, 1] - (KAPPA * r["turn"]).mean())
                                           / (r["w"].mean() * r["f"].mean()))
+    # figure: predicted against realized beta over time, both over the same 12 holding months
+    q = panel.dropna(subset=["beta_pred", "french_mom_next", "R_M_next"]).copy()
+    W = 12
+    rows_ts = []
+    for i in range(0, len(q) - W + 1):
+        g = q.iloc[i:i + W]
+        x = g["R_M_next"].values
+        y = g["french_mom_next"].values
+        b = np.cov(x, y, ddof=1)[0, 1] / np.var(x, ddof=1)
+        rows_ts.append((g.index[-1] + pd.offsets.MonthEnd(1), g["beta_pred"].mean(), b))
+    ts = pd.DataFrame(rows_ts, columns=["date", "pred", "real"]).set_index("date")
+    out["ts_corr"] = float(ts.corr().iloc[0, 1])
+    fig, ax = plt.subplots(figsize=(7.2, 3.3))
+    ax.plot(ts.index, ts["real"], color="0.55", lw=0.9, label="realized (12-month regression on the market)")
+    ax.plot(ts.index, ts["pred"], color="C0", lw=1.3, label="predicted (Proposition 1, no fitted parameters)")
+    ax.axhline(0, color="k", lw=0.5)
+    for d0, lab in (("1938-06-30", "1938"), ("2009-09-30", "2009")):
+        yv = float(ts["pred"].loc[:d0].iloc[-1])
+        ax.annotate(lab, (pd.Timestamp(d0), yv), xytext=(8, -14), textcoords="offset points", fontsize=8)
+    # typical sampling error of a 12-month realized beta, reported in the caption
+    resid_sd = float(np.std(q["french_mom_next"] - q["beta_pred"] * q["R_M_next"], ddof=1))
+    out["ts_beta_se"] = float(resid_sd / (q["R_M_next"].std(ddof=1) * np.sqrt(W)))
+    ax.set_ylabel("momentum's market beta")
+    ax.legend(frameon=False, fontsize=8, loc="lower left")
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(os.path.join(PAPER_IMG, "fig_beta_time.png"), dpi=200)
+    plt.close(fig)
+
     json.dump(out, open(os.path.join(MECH, "paper_numbers.json"), "w"), indent=1)
     write_tex(res, out)
     print(json.dumps(out, indent=1, default=float))
@@ -148,6 +178,8 @@ def write_tex(res, out):
     add("MktPreM", num(mk["M_pre"])); add("MktPostM", num(mk["M_post"]))
     add("MechDAbsFull", num(abs(res["full"]["T2_french"]["d"])))
     add("MechDAbsPost", num(abs(res["from_1963"]["T2_french"]["d"])))
+    add("MechTsCorr", num(out["ts_corr"]))
+    add("MechTsSe", num(out["ts_beta_se"]))
     l1 = out["L1"]
     add("LOneMonths", f"{l1['months']}")
     add("LOneShareMonths", f"{100 * l1['share_months_neg']:.0f}"); add("LOneShareCov", f"{100 * l1['share_cov_neg']:.0f}")

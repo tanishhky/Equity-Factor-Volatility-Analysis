@@ -101,7 +101,15 @@ Factor & Period & $\bar w$ & $\bar f$ & $\bar w\,\bar f$ & $\widehat{\operatorna
 \label{tab:decomp}
 \end{table}
 
-Table~\ref{tab:decomp} shows the reason. Momentum's covariance between exposure and return is positive in both periods, so its return channel exceeds one ($M=\MomPreM{}$ before 2017). Every other factor's covariance is negative: the rule scales them down in the months they pay. For the market, $M$ is \MktPreM{} before 2017 and \MktPostM{} after. The next two sections explain both signs.
+Table~\ref{tab:decomp} shows the reason. Momentum's covariance between exposure and return is positive in both periods, so its return channel exceeds one ($M=\MomPreM{}$ before 2017). Every other factor's covariance is negative: the rule scales them down in the months they pay. Figure~\ref{fig:terc} shows the split directly: in both periods momentum earns more in calm months than in turbulent ones, and every other factor the reverse.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{images/fig_terciles.png}
+\caption{Annualized mean factor return by tercile of the real-time managed exposure (daily-data rule), before and after the published samples end. Turbulent months are the third with the lowest exposure, that is, the highest prior variance.}
+\label{fig:terc}
+\end{figure}
+ For the market, $M$ is \MktPreM{} before 2017 and \MktPostM{} after. The next two sections explain both signs.
 
 \section{Momentum's formation beta}
 \label{sec:mech}
@@ -148,7 +156,15 @@ Sample & Portfolio & $c$ (s.e.) & $d$ (s.e.) & $p$: $c=1,d=0$ & $\Delta R^2$ & S
 \label{fig:beta}
 \end{figure}
 
-The slope matches the prediction (Table~\ref{tab:mech} and Figure~\ref{fig:beta}). With no fitted parameter, $c$ is \MechCFull{} (standard error \MechCSeFull{}) for French's momentum over \MechFirstYear{} to 2025 and \MechCPost{} (\MechCSePost{}) from 1963; for the theory's equal-weighted portfolio from 1963 it is \MechCEwPost{}. Adding the prediction raises the $R^2$ of a regression of momentum on the market by \MechRtwoFull{} percentage points, \MechShareFull\% of the rise from an in-sample regression that fits the slope. The level differs: realized betas sit \MechDAbsFull{} below the prediction over the full sample and \MechDAbsPost{} below from 1963 ($d$ in Table~\ref{tab:mech}), so a joint test of an exact prediction rejects.
+The slope matches the prediction (Table~\ref{tab:mech} and Figure~\ref{fig:beta}). With no fitted parameter, $c$ is \MechCFull{} (standard error \MechCSeFull{}) for French's momentum over \MechFirstYear{} to 2025 and \MechCPost{} (\MechCSePost{}) from 1963; for the theory's equal-weighted portfolio from 1963 it is \MechCEwPost{}. Adding the prediction raises the $R^2$ of a regression of momentum on the market by \MechRtwoFull{} percentage points, \MechShareFull\% of the rise from an in-sample regression that fits the slope. The level differs: realized betas sit \MechDAbsFull{} below the prediction over the full sample and \MechDAbsPost{} below from 1963 ($d$ in Table~\ref{tab:mech}), so a joint test of an exact prediction rejects. Figure~\ref{fig:time} follows both over time: the prediction tracks the large swings, including the negative betas after the declines of 1937 and 2008 (correlation \MechTsCorr{} across overlapping 12-month windows), while the realized series is noisier.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth]{images/fig_beta_time.png}
+\caption{Momentum's predicted beta (\ref{eq:beta}), averaged over 12 consecutive holding months, and its realized beta, the slope of French's momentum on the market over the same months, July \MechFirstYear{} to December 2025. A 12-month realized beta has a sampling error of about \MechTsSe{}.}
+\label{fig:time}
+\end{figure}
+
 
 A plausible source of the gap is volatility drag. Compounding lowers the formation return of volatile stocks, so if high-beta stocks are also more volatile, the loser leg holds high-beta stocks even when $R_F=0$, which would lower momentum's beta at every level of the prediction; simulated markets built that way produce a gap of the same sign. Measuring it requires the joint distribution of betas and idiosyncratic volatility across stocks, which we leave to future work. Betas estimated before the formation window, averaged over winners and losers, move with the prediction (correlation \MechTOneCorr{}, slope \MechTOneSlope{}), as expected if stock betas drift between the estimation window and the formation year.
 
