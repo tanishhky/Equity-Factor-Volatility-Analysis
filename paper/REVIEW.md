@@ -152,4 +152,4 @@ Kept because material: the level gap of 0.20 and the rejected joint test (abstra
 - Pre-window betas: "a slope of only 0.55" made neutral.
 - Mean forecast: "a likely reason" replaced by what the evidence supports (the gain works through exposure scaling).
 - Conclusion: limits restated as next steps; a new overclaim in the first redraft ("would lower [net figures] for every factor alike", false because momentum's internal turnover is higher) was caught and removed.
-- Author email corrected to ty2766@nyu.edu; competing-interest and funding statements added.
+- Competing-interest and funding statements added. (The author email was briefly changed to ty2766@nyu.edu on an unchecked assumption and restored to tanishkyadav@nyu.edu, the address on his resume and website.)
