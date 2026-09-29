@@ -141,3 +141,15 @@ Checked: 5/5 look-ahead tests pass (including every adaptive signal, scale const
 - M2-05. "The slope is right" overstated a slope of 0.92 with standard error 0.19; now "matches the prediction".
 
 ## Round M3: 0 objections
+
+## Round M4 (framing sweep requested by the author: honesty that undermines without informing): 9 changes, no result removed
+Kept because material: the level gap of 0.20 and the rejected joint test (abstract, text, Table 3), the negative mean-forecast result, the smaller post-2016 gain, the cost convention.
+- Abstract: the level gap stated as a fact ("the realized level sits 0.20 below the prediction") instead of a verdict phrase.
+- Introduction: dropped "and every negative result" (the pre-registration claim stands on its own).
+- Method: dropped the trailing-selection comparison (0.70 against 0.82), irrelevant to this paper's argument.
+- Results: dropped the top-decile remark (Figure 1 shows it); the gap is stated once, with the joint test.
+- Level gap: volatility drag presented as a plausible source of the right sign, measurement left to future work; the unsuccessful first-order correction stays documented in PLAN_mechanism.md, not narrated.
+- Pre-window betas: "a slope of only 0.55" made neutral.
+- Mean forecast: "a likely reason" replaced by what the evidence supports (the gain works through exposure scaling).
+- Conclusion: limits restated as next steps; a new overclaim in the first redraft ("would lower [net figures] for every factor alike", false because momentum's internal turnover is higher) was caught and removed.
+- Author email corrected to ty2766@nyu.edu; competing-interest and funding statements added.

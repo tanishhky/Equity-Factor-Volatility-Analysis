@@ -147,6 +147,7 @@ def write_tex(res, out):
     add("MktOrig", num(mk["sr_orig"])); add("MktNet", num(mk["sr_net"]))
     add("MktPreM", num(mk["M_pre"])); add("MktPostM", num(mk["M_post"]))
     add("MechDAbsFull", num(abs(res["full"]["T2_french"]["d"])))
+    add("MechDAbsPost", num(abs(res["from_1963"]["T2_french"]["d"])))
     l1 = out["L1"]
     add("LOneMonths", f"{l1['months']}")
     add("LOneShareMonths", f"{100 * l1['share_months_neg']:.0f}"); add("LOneShareCov", f"{100 * l1['share_cov_neg']:.0f}")
