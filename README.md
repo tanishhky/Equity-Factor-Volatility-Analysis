@@ -1,5 +1,7 @@
 # Volatility-Managed Factor Portfolios
 
+**Paper, figures and summary:** [tanishkyadav.me/research/volatility-managed-factors](https://www.tanishkyadav.me/research/volatility-managed-factors)
+
 A replication and extension of **Moreira & Muir (2017), "Volatility-Managed Portfolios"** on the
 Fama-French 5 factors plus Momentum. The question: if you scale a factor's exposure by the inverse
 of its recent realized variance, does risk-adjusted performance improve? The honest answer is
