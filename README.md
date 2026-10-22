@@ -3,7 +3,7 @@
 **Why Volatility Management Pays for Momentum and Not the Market**
 
 **Author:** Tanishk Yadav, New York University, Tandon School of Engineering\
-**Status:** Working paper, September 2026. Not peer reviewed.\
+**Status:** SSRN preprint [7113079](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7113079), September 2026. Not peer reviewed.\
 **Paper, figures and summary:** [tanishkyadav.me/research/volatility-managed-factors](https://www.tanishkyadav.me/research/volatility-managed-factors)\
 **Manuscript:** [`paper/letter.pdf`](paper/letter.pdf)
 
@@ -97,7 +97,7 @@ paper/submission/            journal submission package
 
 ## Cite
 
-Yadav, Tanishk (2026). "Calm Months, Crash Months: Why Volatility Management Pays for Momentum and Not the Market." Working paper, New York University.
+Yadav, Tanishk (2026). "Calm Months, Crash Months: Why Volatility Management Pays for Momentum and Not the Market." SSRN preprint 7113079. https://ssrn.com/abstract=7113079
 
 ## References
 
