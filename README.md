@@ -1,121 +1,110 @@
-# Volatility-Managed Factor Portfolios
+# Calm Months, Crash Months
 
-**Paper, figures and summary:** [tanishkyadav.me/research/volatility-managed-factors](https://www.tanishkyadav.me/research/volatility-managed-factors)
+**Why Volatility Management Pays for Momentum and Not the Market**
 
-A replication and extension of **Moreira & Muir (2017), "Volatility-Managed Portfolios"** on the
-Fama-French 5 factors plus Momentum. The question: if you scale a factor's exposure by the inverse
-of its recent realized variance, does risk-adjusted performance improve? The honest answer is
-**it depends strongly on the factor** - volatility timing earns large, significant alpha on the
-crash-prone factors (momentum and profitability) and does nothing for size, value, or investment.
+**Author:** Tanishk Yadav, New York University, Tandon School of Engineering\
+**Status:** Working paper, September 2026. Not peer reviewed.\
+**Paper, figures and summary:** [tanishkyadav.me/research/volatility-managed-factors](https://www.tanishkyadav.me/research/volatility-managed-factors)\
+**Manuscript:** [`paper/letter.pdf`](paper/letter.pdf)
 
-Built on the Ken French Data Library (daily FF5 + Momentum, 1963-2026). No API keys.
+![Annualized mean factor return by tercile of the real-time managed exposure, before and after 2017](paper/images/fig_terciles.png)
 
+---
+
+## Question
+
+Moreira and Muir (2017) show that scaling a factor's exposure by the inverse of its recent variance raises the Sharpe ratio of many equity factors. Their test uses full-sample moments no investor had, and in real time most of the gains disappear (Cederburg, O'Doherty, Wang and Yan 2020). Momentum is the consistent survivor. Why momentum, and why not the market, for which the rule was first proposed?
+
+## Key results
+
+Real time: every position uses only data available at the end of the prior month, exposure is capped at 1.5, and every change in exposure costs 14 basis points. July 1973 to August 2026, 638 months.
+
+| Factor | Sharpe, original | Sharpe, managed (net) | Holm-adjusted p | Largest loss at equal volatility, original / managed (pts) |
+|---|---|---|---|---|
+| **Momentum** | 0.43 | **0.94** | **0.023** | 76 / 23 |
+| Market | 0.51 | 0.48 | 1.000 | 68 / 42 |
+| Size (SMB) | 0.21 | 0.13 | 1.000 | 77 / 85 |
+| Value (HML) | 0.32 | 0.27 | 1.000 | 79 / 67 |
+| Profitability (RMW) | 0.38 | 0.45 | 1.000 | 51 / 46 |
+| Investment (CMA) | 0.45 | 0.41 | 1.000 | 31 / 47 |
+
+| Result | Value |
+|---|---|
+| Only momentum improves | No other factor's Sharpe ratio changes significantly, and no real-time combination of original and managed factor beats its original factor after costs |
+| Robustness | Across variance signals, block lengths, caps, scaling rules and start dates, managed momentum's Sharpe ratio ranges from 0.78 to 0.97 and always differs from the original (p at most 0.014) |
+| After the published samples end | Momentum 0.21 to 0.44 over 116 months, against 0.48 to 1.02 before; the change between the periods is not significant (p = 0.24) |
+| Why only momentum | An exact decomposition: timing adds return only when a factor earns less in turbulent months. Momentum's covariance between exposure and return is positive; every other factor's is negative |
+| Momentum's formation beta | Closed form from two cross-sectional quantities via Tweedie's formula. Tested on CRSP with no fitted parameter, 1932 to 2025: slope 0.92 (standard error 0.19), 79% of the explanatory power of an in-sample regression. The realized level sits 0.20 below the prediction, so a joint test of an exact prediction rejects |
+| Where the gain comes from | Months after market declines are 29% of the sample and supply 71% of the covariance through which timing adds to momentum's return |
+| No forecast needed | A mean forecast built from the predicted beta does not beat the historical mean (out-of-sample R² of -0.30% before 2017, Clark-West p = 0.15); the gain works through scaling exposure |
+| The market | If its premium rises with its variance, an inverse-variance rule cuts exposure exactly when the premium rises, so the market should not be volatility-timed; its Sharpe ratio falls from 0.51 to 0.48 |
+
+## Abstract
+
+Built with only past data, capped leverage and trading costs, volatility management improves momentum, from a Sharpe ratio of 0.43 to 0.94 over July 1973 to August 2026, but none of the other Fama-French factors. We explain why. Sorting stocks on past returns loads momentum on the market in proportion to the market's own return over the formation window. Using Tweedie's formula, we derive this beta in closed form from two cross-sectional quantities, the dispersion of stock betas and the density of past returns at the portfolio breakpoints, and test it on CRSP with no fitted parameter. Against realized betas from 1932 to 2025, the prediction has a slope of 0.92 (standard error 0.19) and 79% of the explanatory power of an in-sample regression: it captures how momentum's beta moves, while the realized level sits 0.20 below the prediction. Months after market declines are 29% of the sample and supply 71% of the covariance through which timing adds to momentum's return. If the market's premium rises with its variance, the same logic implies that the market should not be volatility-timed; in our sample it is not improved by it.
+
+**Keywords:** volatility-managed portfolios, momentum, time-varying beta, Tweedie's formula, factor timing\
+**JEL:** G11, G12, G14
+
+![Realized market beta of momentum against the predicted formation beta, by decile](paper/images/fig_formation_beta.png)
+
+## Data
+
+- **Factors:** market, size, value, profitability, investment and momentum from the Kenneth R. French Data Library, July 1963 to August 2026. Monthly returns come from the monthly files; daily returns serve only to measure risk. No API key needed.
+- **Stocks:** CRSP common stocks on NYSE, AMEX and NASDAQ through WRDS, monthly, to December 2025, for the formation-beta test. Stock-level CRSP data are licensed: they are cached under `data/crsp/` (gitignored) and never committed. Only portfolio-level series and test statistics are written to `output/mechanism/`. The rebuilt value-weighted momentum factor correlates 0.9989 with French's over 1,181 months.
+
+## Methods
+
+1. **Real-time rebuild.** The variance signal is an exponentially weighted average of squared daily returns with a one-month half-life; the scale constant is estimated on an expanding window with a 120-month burn-in; exposure is capped at 1.5 and charged 14 basis points per unit of change. Moreira and Muir's prior-month realized variance is reported alongside.
+2. **Inference.** Sharpe ratios are compared with the studentized circular block bootstrap of Ledoit and Wolf (2008), 12-month blocks, 4,999 resamples, Holm-adjusted across the six factors.
+3. **Pre-registration.** The learning rate was chosen for momentum on 1973 to 2016 data among 24 variants fixed in advance (`paper/PLAN_adaptive.md`). The CRSP test was specified before the data were downloaded, and every later test before it was run (`paper/PLAN_mechanism.md`).
+4. **Formation-beta test.** Stock betas are estimated over months m-71 to m-12, before the formation window starts. The cross-sectional beta variance is corrected for estimation error, and the density of formation returns at the NYSE breakpoints uses the quantile-spacing estimator with the Hall-Sheather bandwidth. The test regresses momentum on the predicted beta times the market return, with Newey-West errors (12 lags).
+5. **No lookahead.** Tests replace every return and variance dated at or after a cut-off with noise and check that every earlier position is unchanged.
+
+## Reproducing
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+python src/realtime.py                 # real-time rebuild of the six factors, tables and numbers
+python src/adaptive.py                 # pre-registered learning-rate grid and selection rules
+pip install wrds                       # only for the CRSP pull; needs a WRDS entry in ~/.pgpass
+python src/crsp_mechanism.py pull      # stock-level CRSP, cached in data/crsp/ (gitignored)
+python src/crsp_mechanism.py run       # formation-beta test, portfolio-level output only
+python src/mechanism_paper.py          # mechanism numbers, table and figures
+pytest tests/                          # no-lookahead invariance and mechanism checks
+cd paper && pdflatex letter.tex
 ```
-python src/vol_managed_factors.py
-```
 
-## Headline result
-
-For each factor `f`, the volatility-managed version is `f_managed[m] = (c / RV[m-1]) * f[m]`, where
-`RV[m-1]` is the realized variance over the prior month (sum of squared daily returns) and `c` is a
-single constant chosen so the managed series matches the original's full-sample volatility. The
-timing signal `1/RV[m-1]` uses only past data, so the leverage decision is out-of-sample; `c` is a
-scale-only normalization that affects neither the Sharpe ratio nor the spanning-regression t-stat.
-
-The Moreira-Muir test regresses the managed factor on the original, `f_managed = alpha + beta*f + e`;
-a positive significant `alpha` means volatility timing earns return the buy-and-hold factor does not
-span. Full sample, monthly, net of 14 bps per unit of leverage turnover, Newey-West (HAC, 6 lags)
-t-statistics:
-
-| Factor | Sharpe (orig) | Sharpe (managed) | Sharpe (net of costs) | Spanning alpha (ann.) | t-stat |
-|---|---|---|---|---|---|
-| **Momentum** | 0.51 | **0.89** | 0.81 | **+8.9%** | **5.03** |
-| **RMW (profitability)** | 0.41 | **0.54** | 0.41 | **+2.3%** | **2.87** |
-| Mkt-RF | 0.48 | 0.46 | 0.40 | +2.1% | 1.37 |
-| HML (value) | 0.37 | 0.35 | 0.26 | +1.4% | 1.21 |
-| CMA (investment) | 0.42 | 0.32 | 0.19 | +0.3% | 0.45 |
-| SMB (size) | 0.15 | 0.09 | 0.01 | -0.2% | -0.18 |
-
-![Volatility-managed market factor vs buy-and-hold](output/figures/cum_mkt.png)
-
-## What the result means
-
-- **Momentum is the standout** (alpha 8.9%/yr, t=5.0; net Sharpe 0.81 vs 0.51). This is consistent
-  with Barroso & Santa-Clara (2015), "Momentum Has Its Moments": momentum crashes happen in
-  high-volatility states, so cutting exposure when variance spikes avoids the worst of them.
-- **Profitability (RMW)** also benefits significantly (t=2.9). Both winners are factors with strong
-  negative volatility-return dynamics and fat left tails.
-- **Size, value, and investment do not benefit** - their volatility carries less information about
-  future returns, so timing them adds turnover without alpha.
-- The **market factor's** managed alpha is positive but insignificant over the full 1963-2026 sample,
-  weaker than in Moreira & Muir's original window - an honest sign of partial decay as the result
-  became known.
-
-This is a performance-attribution and factor-timing study, not a live trading system: the `1/RV`
-weights can imply large leverage, so the table reports turnover and net-of-cost Sharpe, and a real
-implementation would cap leverage (which would shrink the gains).
-
-## The Cederburg critique, addressed head-on
-
-Cederburg, O'Doherty, Wang & Yan (2020, *JFE*) is the standard rebuttal to Moreira-Muir, and any
-honest replication has to engage it. Their three objections, and where this study stands:
-
-1. **A spanning alpha is not an implementable strategy.** Correct. The regression `f_managed =
-   alpha + beta*f + e` answers "does timing add unspanned return," not "could you have traded
-   this." In particular the volatility-normalizing constant `c` here is fitted on the full sample;
-   a real-time version must estimate it expanding-window. Because `c` is scale-only it does not
-   move the Sharpe or the t-stat, but it does change realized leverage paths, and leverage caps
-   bind exactly in the crises where the strategy earns its keep.
-2. **Out-of-sample fragility.** Cederburg et al. find that direct trading implementations of most
-   vol-managed factors fail OOS. Their own results, though, single out **momentum** as the factor
-   where volatility management is most robust, and that is precisely the factor that dominates
-   the table above (alpha +8.9%/yr, t=5.0). This study's per-factor heterogeneity (2 of 6 factors
-   benefit) is consistent with their critique of the "everything benefits" reading, not in
-   tension with it.
-3. **Sample dependence.** The market factor's decay noted above (insignificant t=1.37 over
-   1963-2026, weaker than the original window) is this critique showing up in this data. It is
-   reported rather than hidden.
-
-Net position: volatility timing is real but narrow - a momentum-crash hedge first (Barroso &
-Santa-Clara), a profitability overlay second, and not a general-purpose factor enhancement.
-
-## Secondary analyses
-
-These came first historically and now serve as context for the volatility-timing work above.
-
-**1. Sector factor attribution.** FF3, Carhart 4-factor, and FF5 regressions on the 11 SPDR sector
-ETFs (XLK, XLF, XLV, ...). The models explain ~92-93% of the technology sector's daily variance;
-tech shows market beta > 1, a large-cap tilt (negative SMB), and a growth tilt (negative HML), and
-adding Momentum and RMW measurably improves fit. Rolling-window regressions visualize time-varying
-betas: a market-wide correlation spike in the 2020 crash and the 2022 growth-to-value rotation.
-
-**2. Sector-momentum baseline (honest).** A top-3-of-11 sector rotation by trailing 6-month momentum,
-rebalanced monthly. Net of costs it returns 9.5% vs SPY's 12.0%, Sharpe 0.53 vs 0.68, with alpha of
--1.1% (t=-0.48) - it lowers max drawdown (-16.4% vs -24.8%) but does **not** beat SPY on a
-risk-adjusted basis. That negative result is exactly what motivates the volatility-timing extension:
-naive cross-sectional momentum is hard to monetize, while timing a factor by its own variance is not.
+Numbers land in `paper/generated/` and `output/`; the manuscript reads them directly, so no figure in the text is typed by hand.
 
 ## Repository
 
 ```
-src/vol_managed_factors.py        Moreira-Muir analysis (this README's headline)
-output/vol_managed_metrics.csv    full per-factor metrics
-output/figures/                   cumulative market factor, Sharpe comparison
-expanding_the_factor_models.ipynb FF3 / Carhart / FF5 sector attribution
-sector_rotation_strategy.ipynb    sector-momentum baseline
-cross_sectional_analysis.ipynb    rolling-beta heatmaps
-paper/paper_equity_factor.tex     write-up
+src/realtime.py              real-time volatility management, six factors
+src/adaptive.py              learning-rate variants (pre-registered)
+src/crsp_mechanism.py        CRSP formation-beta test
+src/mechanism_paper.py       mechanism section numbers and figures
+src/vol_managed_factors.py   in-sample Moreira-Muir spanning regressions; it uses French's daily momentum
+                             file, which is re-formed daily, so its momentum row is not the monthly factor
+tests/                       no-lookahead and mechanism tests
+paper/letter.tex, .pdf       manuscript
+paper/PLAN_*.md, REVIEW.md   pre-registration plans and the review log
+paper/submission/            journal submission package
+*.ipynb                      sector factor attribution, sector-momentum baseline, rolling betas
 ```
 
-Available as an SSRN preprint (posted July 2026; not peer reviewed):
-[Abstract ID 7113079](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7113079).
+## Cite
+
+Yadav, Tanishk (2026). "Calm Months, Crash Months: Why Volatility Management Pays for Momentum and Not the Market." Working paper, New York University.
 
 ## References
 
-- Moreira, A. & Muir, T. (2017). Volatility-Managed Portfolios. *Journal of Finance* 72(4).
-- Cederburg, S., O'Doherty, M., Wang, F. & Yan, X. (2020). On the Performance of Volatility-Managed
-  Portfolios. *Journal of Financial Economics* 138(1).
-- Barroso, P. & Santa-Clara, P. (2015). Momentum Has Its Moments. *Journal of Financial Economics* 116(1).
-- Fama, E. & French, K. (2015). A Five-Factor Asset Pricing Model. *Journal of Financial Economics* 116(1).
+- Moreira, A., Muir, T. (2017). Volatility-managed portfolios. *Journal of Finance* 72(4), 1611-1644.
+- Cederburg, S., O'Doherty, M.S., Wang, F., Yan, X.S. (2020). On the performance of volatility-managed portfolios. *Journal of Financial Economics* 138(1), 95-117.
+- Barroso, P., Santa-Clara, P. (2015). Momentum has its moments. *Journal of Financial Economics* 116(1), 111-120.
+- Daniel, K., Moskowitz, T.J. (2016). Momentum crashes. *Journal of Financial Economics* 122(2), 221-247.
+- Grundy, B.D., Martin, J.S. (2001). Understanding the nature of the risks and the source of the rewards to momentum investing. *Review of Financial Studies* 14(1), 29-78.
 
-*Data: Kenneth R. French Data Library. This is a research/educational project, not investment advice.*
+*Data: Kenneth R. French Data Library; CRSP through WRDS. Research project, not investment advice.*

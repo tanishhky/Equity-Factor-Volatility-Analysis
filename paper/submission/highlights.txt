@@ -1,0 +1,5 @@
+In real time, volatility management improves momentum and no other equity factor
+Momentum's market beta is derived in closed form with Tweedie's formula
+Tested on CRSP with no fitted parameter, it tracks how momentum's beta moves
+Months after market declines supply 71% of momentum's timing covariance
+If its premium rises with variance, the market should not be volatility-timed
