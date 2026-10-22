@@ -10,6 +10,6 @@ Uploading this revision replaces the public paper behind 7113079, whose momentum
 
 **JEL:** G11, G12, G14
 
-**File:** paper/letter.pdf (the submitted manuscript)
+**File:** paper/letter.pdf (the manuscript)
 
 **Date of the paper:** September 2026
